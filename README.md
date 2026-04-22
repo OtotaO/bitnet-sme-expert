@@ -7,10 +7,16 @@
 [![Pydantic](https://img.shields.io/badge/Pydantic-v2-red?logo=pydantic)](https://pydantic.dev)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/sumequities/bitnet-sme-expert/actions/workflows/ci.yml/badge.svg)](https://github.com/sumequities/bitnet-sme-expert/actions/workflows/ci.yml)
-[![Security](https://github.com/sumequities/bitnet-sme-expert/actions/workflows/security.yml/badge.svg)](https://github.com/sumequities/bitnet-sme-expert/actions/workflows/security.yml)
-[![Coverage](https://img.shields.io/badge/Coverage-CI%20artifact-informational)](docs/coverage-report.md)
-[![Release Notes](https://img.shields.io/badge/Release%20Notes-Versioned-blue)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/Tests-Pytest-orange?logo=pytest)](https://pytest.org)
+[![CI](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/ci.yml/badge.svg)](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/ci.yml)
+[![Security Scans](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/security.yml/badge.svg)](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/security.yml)
+
+
+### CI/CD and Branch Protection
+
+- Core checks run in **CI** (`lint`, `test`, `build-container`) via `make lint`, `make test`, and `make build`.
+- Security checks run in **Security Scans** with Bandit configured to fail on high-severity findings and `pip-audit` for dependency vulnerabilities.
+- To enforce required checks on `main`, add a repository secret named `BRANCH_PROTECTION_TOKEN` (PAT with `repo` admin scope), then run the **Configure Branch Protection** workflow manually from the Actions tab.
 
 ## 🎯 Overview
 
@@ -103,6 +109,29 @@ ENVIRONMENT=development
 DATABASE_URL=sqlite:///./bitnet_sme.db
 REDIS_URL=redis://localhost:6379/0
 ```
+
+## 🔐 Secure Production Deployment
+
+Use the production template and set every secret/provider flag explicitly:
+
+```bash
+cp .env.production.example .env
+```
+
+Production hardening requirements:
+
+- `ENVIRONMENT=production` must be set.
+- `SECRET_KEY` and `JWT_SECRET_KEY` **must not** use default placeholder values.
+- `ALLOWED_ORIGINS` must be an explicit allowlist (wildcard `*` is rejected in production).
+- For each enabled provider (`ENABLE_OPENAI_PROVIDER`, `ENABLE_ANTHROPIC_PROVIDER`, `ENABLE_GOOGLE_PROVIDER`), the matching API key must be present.
+- Sensitive endpoints (`/cache/clear`, fine-tuning routes, training job status/list) require a valid Bearer JWT with appropriate role claims.
+
+JWT role expectations for sensitive endpoints:
+
+- `admin`: required for `/cache/clear`, `/api/v1/train`, `/api/v1/fine-tune`
+- `admin` or `operator`: required for `/api/v1/training/status/{job_id}` and `/api/v1/training/jobs`
+
+You can provide roles via either `role` (string) or `roles` (string list) claims in the JWT.
 
 ### 3. Installation Methods
 

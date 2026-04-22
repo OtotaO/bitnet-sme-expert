@@ -4,8 +4,8 @@ BitNet SME Expert API
 A high-performance API for interacting with specialized AI experts
 in various domains including math, coding, and general knowledge.
 """
-import os
 import logging
+from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,20 +17,20 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator, List, Optional
 import uvicorn
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
 # Initialize database
-from .database import init_db, engine, Base
+from app.database import init_db, engine, Base
 Base.metadata.create_all(bind=engine)
 init_db()
 
-from .config import settings
-from .api.endpoints import router as api_router
-from .api.endpoints.fine_tuning import router as fine_tuning_router
-from .services.expert_service import ExpertService
+from app.config import settings
+from app.api.endpoints import api_router
+from app.services.expert_service import ExpertService
 
 # Configure logging
 logging.basicConfig(
@@ -80,9 +80,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 async def register_experts(service: ExpertService):
     """Register all available expert implementations."""
-    from .experts.math_expert import MathExpert
-    from .experts.code_expert import CodeExpert
-    from .experts.general_expert import GeneralExpert
+    from app.experts.math_expert import MathExpert
+    from app.experts.code_expert import CodeExpert
+    from app.experts.general_expert import GeneralExpert
     
     # Register expert classes
     service.register_expert_class(
@@ -151,17 +151,19 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS configuration
-origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=settings.ALLOW_CREDENTIALS,
+    allow_methods=settings.ALLOWED_METHODS,
+    allow_headers=settings.ALLOWED_HEADERS,
 )
 
+# Authentication/authorization for sensitive endpoints
+app.add_middleware(AuthzMiddleware)
+
 # Add logging middleware
-from .middleware.logging_middleware import LoggingMiddleware
+from app.middleware.logging_middleware import LoggingMiddleware
 app.middleware("http")(LoggingMiddleware())
 
 # Dependency to get the expert service
@@ -176,7 +178,6 @@ async def get_expert_service() -> ExpertService:
 
 # Include API routers
 app.include_router(api_router, prefix="/api/v1")
-app.include_router(fine_tuning_router, prefix="/api/v1")
 
 # Health check endpoint
 @app.get("/health")
@@ -197,7 +198,7 @@ async def health_check(request: Request):
 @app.get("/cache/stats")
 async def cache_stats():
     """Get cache statistics."""
-    from .utils.cache import cache
+    from app.utils.cache import cache
     return {
         "status": "ok",
         "cache_stats": cache.stats(),
@@ -209,7 +210,7 @@ async def cache_stats():
 @limiter.limit("1/minute")
 async def clear_cache(request: Request):
     """Clear the cache."""
-    from .utils.cache import cache
+    from app.utils.cache import cache
     cache.clear()
     return {
         "status": "ok",
