@@ -113,16 +113,10 @@ class BaseExpert(ABC):
             self.logger.debug(f"Generating response for input: {input_text[:200]}...")
             
             # Call the implementation
-            response = await self._generate_impl(input_text, context or {}, **config)
-            
-            # Ensure response has required fields
-            if not isinstance(response, dict):
-                response = {"response": str(response)}
-                
-            # Add metadata if not present
-            if "metadata" not in response:
-                response["metadata"] = {}
-                
+            raw_response = await self._generate_impl(input_text, context or {}, **config)
+
+            response = self._normalize_expert_output(raw_response)
+
             # Add timing information
             processing_time = time.time() - start_time
             response["metadata"].update({
@@ -133,10 +127,10 @@ class BaseExpert(ABC):
                 "expert_domain": self.config.domain,
                 "timestamp": datetime.utcnow().isoformat()
             })
-            
-            # Add token count if not provided
-            if "tokens_used" not in response["metadata"] and "response" in response:
-                response["metadata"]["tokens_used"] = len(str(response["response"]).split())
+            response["tokens_used"] = int(response.get("tokens_used", 0))
+            response["metadata"]["tokens_used"] = response["tokens_used"]
+            response["metadata"]["confidence"] = response.get("confidence", 0.0)
+            response["metadata"]["sources_count"] = len(response.get("sources", []))
                 
             self.logger.debug(
                 f"Generated response in {processing_time:.2f}s: "
@@ -151,6 +145,33 @@ class BaseExpert(ABC):
                 exc_info=True
             )
             raise
+
+    def _normalize_expert_output(self, output: Any) -> Dict[str, Any]:
+        """Normalize expert output to a stable response schema."""
+        if not isinstance(output, dict):
+            output = {"response": str(output)}
+
+        metadata = output.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+
+        sources = output.get("sources")
+        if not isinstance(sources, list):
+            sources = []
+
+        response_text = str(output.get("response", ""))
+        tokens_used = output.get("tokens_used", metadata.get("tokens_used"))
+        if tokens_used is None:
+            tokens_used = len(response_text.split())
+
+        normalized = {
+            "response": response_text,
+            "confidence": float(output.get("confidence", metadata.get("confidence", 0.0))),
+            "tokens_used": int(tokens_used),
+            "metadata": metadata,
+            "sources": sources
+        }
+        return normalized
             
     @abstractmethod
     async def _generate_impl(

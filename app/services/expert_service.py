@@ -1,16 +1,15 @@
 import logging
-import importlib
 import asyncio
-from typing import Dict, Type, List, Optional, Any, TypeVar, Generic, Union
+from typing import Dict, Type, List, Optional, Any, TypeVar, Union
 from datetime import datetime
-import uuid
+from fastapi import HTTPException, status
 
-from ..models.expert import BaseExpert, ExpertConfig, ExpertContext
-from ..schemas.base import ExpertDomain, BaseResponse
-from ..schemas.response import ExpertInfo, ListExpertsResponse
+from ..models.expert import BaseExpert
+from ..schemas.base import ExpertDomain
 from ..schemas.request import QueryRequest, CollaborateRequest
 
 logger = logging.getLogger(__name__)
+_expert_service_instance: Optional["ExpertService"] = None
 
 T = TypeVar('T', bound=BaseExpert)
 
@@ -241,8 +240,8 @@ class ExpertService:
             temperature=request.temperature,
             top_p=request.top_p
         )
-        
-        return response
+
+        return self._normalize_service_response(response)
     
     async def collaborate(
         self,
@@ -302,7 +301,7 @@ class ExpertService:
         for expert_id, task in tasks:
             try:
                 result = await task
-                results[expert_id] = result
+                results[expert_id] = self._normalize_service_response(result)
             except Exception as e:
                 self.logger.error(f"Error querying expert {expert_id}: {str(e)}", exc_info=True)
                 results[expert_id] = {
@@ -330,8 +329,9 @@ class ExpertService:
                 temperature=temperature,
                 top_p=top_p
             )
-            response["success"] = True
-            return response
+            normalized_response = self._normalize_service_response(response)
+            normalized_response["success"] = True
+            return normalized_response
         except Exception as e:
             self.logger.error(
                 f"Error in expert {expert.id} ({expert.domain}): {str(e)}",
@@ -341,7 +341,12 @@ class ExpertService:
                 "error": str(e),
                 "success": False,
                 "expert_id": expert.id,
-                "expert_domain": expert.domain.value
+                "expert_domain": expert.domain.value,
+                "response": "",
+                "confidence": 0.0,
+                "tokens_used": 0,
+                "metadata": {"error": str(e)},
+                "sources": []
             }
     
     async def list_experts(self) -> List[Dict[str, Any]]:
@@ -373,3 +378,44 @@ class ExpertService:
         self._experts.clear()
         self._initialized = False
         self.logger.info("ExpertService cleanup complete")
+
+    def _normalize_service_response(self, response: Any) -> Dict[str, Any]:
+        """Normalize service responses to a stable schema."""
+        if not isinstance(response, dict):
+            response = {"response": str(response)}
+
+        metadata = response.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+
+        sources = response.get("sources")
+        if not isinstance(sources, list):
+            sources = []
+
+        response_text = str(response.get("response", ""))
+        tokens_used = response.get("tokens_used", metadata.get("tokens_used", 0))
+
+        return {
+            **response,
+            "response": response_text,
+            "confidence": float(response.get("confidence", metadata.get("confidence", 0.0))),
+            "tokens_used": int(tokens_used),
+            "metadata": metadata,
+            "sources": sources
+        }
+
+
+def set_expert_service_instance(service: Optional[ExpertService]) -> None:
+    """Set the global expert service instance used by API dependencies."""
+    global _expert_service_instance
+    _expert_service_instance = service
+
+
+async def get_expert_service() -> ExpertService:
+    """Dependency provider for retrieving the initialized expert service."""
+    if _expert_service_instance is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Expert service not initialized",
+        )
+    return _expert_service_instance

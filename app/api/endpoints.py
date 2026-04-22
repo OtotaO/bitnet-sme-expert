@@ -1,20 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path
-from fastapi.responses import JSONResponse
-from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status
 import logging
 import uuid
 from datetime import datetime
 
 from ...services.expert_service import ExpertService, get_expert_service
-from ...schemas.base import ExpertDomain, BaseResponse, ErrorResponse
+from ...schemas.base import ExpertDomain, BaseResponse
 from ...schemas.request import QueryRequest, CollaborateRequest, TrainingRequest, FeedbackRequest, SearchRequest
 from ...schemas.response import (
     QueryResponse,
     CollaborateResponse,
     TrainingJobResponse,
     ListExpertsResponse,
-    ExpertInfo,
-    ExpertResponse
+    ExpertResponse,
+    SearchResponse,
+    SearchResultsPayload,
+    SearchResult
 )
 from ...core.workflow import Workflow, WorkflowContext, WorkflowStatus
 
@@ -23,7 +23,7 @@ router = APIRouter()
 
 @router.get(
     "/health",
-    response_model=BaseResponse,
+    response_model=BaseResponse[None],
     summary="Health check",
     description="Check if the API is running",
     tags=["System"]
@@ -305,7 +305,7 @@ async def train_expert(
 
 @router.post(
     "/feedback",
-    response_model=BaseResponse,
+    response_model=BaseResponse[None],
     summary="Provide feedback",
     description="Provide feedback on an expert's response",
     tags=["Feedback"]
@@ -342,7 +342,7 @@ async def submit_feedback(
 
 @router.post(
     "/search",
-    response_model=BaseResponse,
+    response_model=SearchResponse,
     summary="Search across experts",
     description="Search for information across all experts",
     tags=["Search"]
@@ -369,23 +369,23 @@ async def search_experts(
         
         # Mock search results
         for expert_id, expert in list(experts.items())[:request.limit]:
-            results.append({
-                "expert_id": expert_id,
-                "expert_name": expert.name,
-                "domain": expert.domain.value,
-                "snippet": f"Relevant information about '{request.query}' from {expert.name}",
-                "confidence": 0.8,  # Mock confidence score
-                "metadata": {
+            results.append(SearchResult(
+                expert_id=expert_id,
+                expert_name=expert.name,
+                domain=expert.domain.value,
+                snippet=f"Relevant information about '{request.query}' from {expert.name}",
+                confidence=0.8,  # Mock confidence score
+                metadata={
                     "model": getattr(expert.config, "model_name", "unknown"),
                     "is_custom": getattr(expert.config, "is_custom", False)
                 }
-            })
+            ))
         
-        return BaseResponse(
+        return SearchResponse(
             success=True,
             message=f"Found {len(results)} relevant results",
             timestamp=datetime.utcnow(),
-            data={"results": results},
+            data=SearchResultsPayload(results=results),
             metadata={
                 "query": request.query,
                 "domains": [d.value for d in request.domains] if request.domains else "all",

@@ -106,3 +106,72 @@ class ListExpertsResponse(BaseResponse[List[ExpertInfo]]):
     """Response model for listing available experts."""
     count: int = Field(..., description="Total number of experts")
     data: List[ExpertInfo] = Field(..., description="List of available experts")
+
+
+class SearchResult(BaseModel):
+    """A single search result from an expert."""
+    expert_id: str
+    expert_name: str
+    domain: ExpertDomain
+    snippet: str
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class SearchResultsPayload(BaseModel):
+    """Payload returned for search requests."""
+    results: List[SearchResult] = Field(default_factory=list)
+
+
+class SearchResponse(BaseResponse[SearchResultsPayload]):
+    """Response model for cross-expert search."""
+    data: SearchResultsPayload = Field(default_factory=SearchResultsPayload)
+
+
+class RateLimitInfo(BaseModel):
+    """Rate limit details for health responses."""
+    limit: str = ""
+    remaining: int = 0
+
+
+class ServiceHealthPayload(BaseModel):
+    """Health payload for root service endpoints."""
+    status: str
+    version: str
+    rate_limit: RateLimitInfo = Field(default_factory=RateLimitInfo)
+
+
+class ServiceHealthResponse(BaseResponse[ServiceHealthPayload]):
+    """Health check response for top-level API service."""
+    data: ServiceHealthPayload
+
+
+class CacheStatsPayload(BaseModel):
+    """Cache statistics payload."""
+    status: str
+    cache_stats: Dict[str, Any] = Field(default_factory=dict)
+
+
+class CacheStatsResponse(BaseResponse[CacheStatsPayload]):
+    """Cache stats response."""
+    data: CacheStatsPayload
+
+
+class CacheClearPayload(BaseModel):
+    """Cache clear result payload."""
+    status: str
+    message: str
+
+
+class CacheClearResponse(BaseResponse[CacheClearPayload]):
+    """Cache clear response."""
+    data: CacheClearPayload
+
+
+class RootInfoResponse(BaseModel):
+    """Root endpoint information."""
+    name: str
+    version: str
+    environment: str
+    docs: str
+    redoc: str

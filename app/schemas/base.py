@@ -1,6 +1,7 @@
 from enum import Enum
 from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Optional, TypeVar, Generic
+from datetime import datetime
 
 T = TypeVar('T')
 
@@ -17,6 +18,8 @@ class BaseResponse(BaseModel, Generic[T]):
     """Base response model for all API responses."""
     success: bool = True
     message: str = "Operation completed successfully"
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     data: Optional[T] = None
     error: Optional[Dict[str, Any]] = None
 
@@ -25,6 +28,8 @@ class BaseResponse(BaseModel, Generic[T]):
             "example": {
                 "success": True,
                 "message": "Operation completed successfully",
+                "timestamp": "2026-01-01T00:00:00Z",
+                "metadata": {},
                 "data": None,
                 "error": None
             }

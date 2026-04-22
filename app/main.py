@@ -6,17 +6,15 @@ in various domains including math, coding, and general knowledge.
 """
 import os
 import logging
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from datetime import datetime
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator
 import uvicorn
-import os
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -30,7 +28,18 @@ init_db()
 from .config import settings
 from .api.endpoints import router as api_router
 from .api.endpoints.fine_tuning import router as fine_tuning_router
-from .services.expert_service import ExpertService
+from .schemas.base import ExpertDomain
+from .schemas.response import (
+    ServiceHealthResponse,
+    ServiceHealthPayload,
+    RateLimitInfo,
+    CacheStatsResponse,
+    CacheStatsPayload,
+    CacheClearResponse,
+    CacheClearPayload,
+    RootInfoResponse
+)
+from .services.expert_service import ExpertService, set_expert_service_instance
 
 # Configure logging
 logging.basicConfig(
@@ -56,6 +65,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         # Initialize the expert service
         expert_service = ExpertService()
+        set_expert_service_instance(expert_service)
         
         # Register expert implementations
         await register_experts(expert_service)
@@ -76,6 +86,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Shutting down...")
         if expert_service:
             await expert_service.cleanup()
+            set_expert_service_instance(None)
         logger.info("Shutdown complete")
 
 async def register_experts(service: ExpertService):
@@ -86,7 +97,7 @@ async def register_experts(service: ExpertService):
     
     # Register expert classes
     service.register_expert_class(
-        domain="math",
+        domain=ExpertDomain.MATH,
         expert_class=MathExpert,
         config={
             "name": "Math Expert",
@@ -97,7 +108,7 @@ async def register_experts(service: ExpertService):
     )
     
     service.register_expert_class(
-        domain="code",
+        domain=ExpertDomain.CODE,
         expert_class=CodeExpert,
         config={
             "name": "Code Expert",
@@ -108,7 +119,7 @@ async def register_experts(service: ExpertService):
     )
     
     service.register_expert_class(
-        domain="general",
+        domain=ExpertDomain.GENERAL,
         expert_class=GeneralExpert,
         config={
             "name": "General Expert",
@@ -179,46 +190,58 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(fine_tuning_router, prefix="/api/v1")
 
 # Health check endpoint
-@app.get("/health")
+@app.get("/health", response_model=ServiceHealthResponse)
 @limiter.limit("10/minute")
 async def health_check(request: Request):
     """Health check endpoint."""
-    return {
-        "status": "ok",
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": "0.1.0",
-        "rate_limit": {
-            "limit": request.scope.get("rate_limit", "").split("/")[0],
-            "remaining": request.scope.get("remaining", 0)
-        }
-    }
+    return ServiceHealthResponse(
+        success=True,
+        message="Service healthy",
+        timestamp=datetime.utcnow(),
+        data=ServiceHealthPayload(
+            status="ok",
+            version="0.1.0",
+            rate_limit=RateLimitInfo(
+                limit=request.scope.get("rate_limit", "").split("/")[0],
+                remaining=request.scope.get("remaining", 0)
+            )
+        )
+    )
 
 # Cache statistics endpoint
-@app.get("/cache/stats")
+@app.get("/cache/stats", response_model=CacheStatsResponse)
 async def cache_stats():
     """Get cache statistics."""
     from .utils.cache import cache
-    return {
-        "status": "ok",
-        "cache_stats": cache.stats(),
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    return CacheStatsResponse(
+        success=True,
+        message="Cache statistics retrieved",
+        timestamp=datetime.utcnow(),
+        data=CacheStatsPayload(
+            status="ok",
+            cache_stats=cache.stats()
+        )
+    )
 
 # Clear cache endpoint (protected by rate limiting)
-@app.post("/cache/clear")
+@app.post("/cache/clear", response_model=CacheClearResponse)
 @limiter.limit("1/minute")
 async def clear_cache(request: Request):
     """Clear the cache."""
     from .utils.cache import cache
     cache.clear()
-    return {
-        "status": "ok",
-        "message": "Cache cleared",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    return CacheClearResponse(
+        success=True,
+        message="Cache cleared",
+        timestamp=datetime.utcnow(),
+        data=CacheClearPayload(
+            status="ok",
+            message="Cache cleared"
+        )
+    )
 
 # Root endpoint
-@app.get("/", include_in_schema=False)
+@app.get("/", response_model=RootInfoResponse, include_in_schema=False)
 async def root():
     """Root endpoint with API information."""
     return {
