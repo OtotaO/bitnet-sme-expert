@@ -7,7 +7,10 @@
 [![Pydantic](https://img.shields.io/badge/Pydantic-v2-red?logo=pydantic)](https://pydantic.dev)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/Tests-Pytest-orange?logo=pytest)](https://pytest.org)
+[![CI](https://github.com/sumequities/bitnet-sme-expert/actions/workflows/ci.yml/badge.svg)](https://github.com/sumequities/bitnet-sme-expert/actions/workflows/ci.yml)
+[![Security](https://github.com/sumequities/bitnet-sme-expert/actions/workflows/security.yml/badge.svg)](https://github.com/sumequities/bitnet-sme-expert/actions/workflows/security.yml)
+[![Coverage](https://img.shields.io/badge/Coverage-CI%20artifact-informational)](docs/coverage-report.md)
+[![Release Notes](https://img.shields.io/badge/Release%20Notes-Versioned-blue)](CHANGELOG.md)
 
 ## 🎯 Overview
 
@@ -21,7 +24,18 @@ The BitNet SME Expert System represents the evolution of AI-powered expert syste
 - **🛡️ Production Ready**: Comprehensive error handling, logging, monitoring, and security
 - **🐳 Containerized**: Docker and Docker Compose ready for any deployment
 - **📊 Observable**: Built-in metrics, health checks, and structured logging
-- **🧪 Well Tested**: Comprehensive test suite with >90% coverage
+- **🧪 Evidence-Based Delivery**: Quality claims are tied to CI workflow status, coverage artifacts, and versioned release notes
+
+
+## ✅ Delivery Evidence
+
+Project quality and release claims should be validated from CI-linked evidence:
+
+- **Workflow badges**: CI and security badges above must be green for the release commit.
+- **Coverage artifact**: Coverage results are published and linked in [`docs/coverage-report.md`](docs/coverage-report.md).
+- **Versioned release notes**: Every release must be captured in [`CHANGELOG.md`](CHANGELOG.md).
+- **Release gate checklist**: Production releases must pass [`docs/release-readiness.md`](docs/release-readiness.md).
+- **Version policy**: Compatibility expectations are defined in [`docs/semantic-versioning.md`](docs/semantic-versioning.md).
 
 ## 🏗️ Architecture
 
@@ -416,11 +430,11 @@ pytest --cov=app --cov-report=html
 
 ### Continuous Integration
 
-GitHub Actions workflow includes:
-- Code quality checks (ruff, mypy, black)
-- Security scanning (bandit, safety)
-- Test execution across Python versions
-- Docker image building and testing
+GitHub Actions workflows are the source of truth for release readiness. Maintain:
+- CI workflow results (tests, lint, build)
+- Security scanning workflow results
+- Coverage artifact publication and link updates in `docs/coverage-report.md`
+- Release-note updates in `CHANGELOG.md`
 
 ## 🔐 Security
 
