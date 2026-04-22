@@ -90,6 +90,29 @@ DATABASE_URL=sqlite:///./bitnet_sme.db
 REDIS_URL=redis://localhost:6379/0
 ```
 
+## 🔐 Secure Production Deployment
+
+Use the production template and set every secret/provider flag explicitly:
+
+```bash
+cp .env.production.example .env
+```
+
+Production hardening requirements:
+
+- `ENVIRONMENT=production` must be set.
+- `SECRET_KEY` and `JWT_SECRET_KEY` **must not** use default placeholder values.
+- `ALLOWED_ORIGINS` must be an explicit allowlist (wildcard `*` is rejected in production).
+- For each enabled provider (`ENABLE_OPENAI_PROVIDER`, `ENABLE_ANTHROPIC_PROVIDER`, `ENABLE_GOOGLE_PROVIDER`), the matching API key must be present.
+- Sensitive endpoints (`/cache/clear`, fine-tuning routes, training job status/list) require a valid Bearer JWT with appropriate role claims.
+
+JWT role expectations for sensitive endpoints:
+
+- `admin`: required for `/cache/clear`, `/api/v1/train`, `/api/v1/fine-tune`
+- `admin` or `operator`: required for `/api/v1/training/status/{job_id}` and `/api/v1/training/jobs`
+
+You can provide roles via either `role` (string) or `roles` (string list) claims in the JWT.
+
 ### 3. Installation Methods
 
 #### Option A: Docker Compose (Recommended)
