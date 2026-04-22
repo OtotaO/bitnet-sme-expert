@@ -1,6 +1,7 @@
 import logging
 import importlib
 import asyncio
+from fastapi import HTTPException, status
 from typing import Dict, Type, List, Optional, Any, TypeVar, Generic, Union
 from datetime import datetime
 import uuid
@@ -9,6 +10,7 @@ from ..models.expert import BaseExpert, ExpertConfig, ExpertContext
 from ..schemas.base import ExpertDomain, BaseResponse
 from ..schemas.response import ExpertInfo, ListExpertsResponse
 from ..schemas.request import QueryRequest, CollaborateRequest
+from ..observability import get_request_id, record_domain_outcome
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +225,14 @@ class ExpertService:
             The expert's response
         """
         expert = await self.get_expert(expert_id)
+        self.logger.info(
+            "expert.query.started",
+            extra={
+                "request_id": get_request_id(),
+                "expert_id": expert_id,
+                "domain": expert.domain.value,
+            },
+        )
         
         # Prepare the context
         expert_context = {
@@ -234,15 +244,35 @@ class ExpertService:
         }
         
         # Generate the response
-        response = await expert.generate(
-            input_text=request.question,
-            context=expert_context,
-            max_tokens=request.max_tokens,
-            temperature=request.temperature,
-            top_p=request.top_p
-        )
-        
-        return response
+        try:
+            response = await expert.generate(
+                input_text=request.question,
+                context=expert_context,
+                max_tokens=request.max_tokens,
+                temperature=request.temperature,
+                top_p=request.top_p,
+            )
+            record_domain_outcome(expert.domain.value, success=True)
+            self.logger.info(
+                "expert.query.completed",
+                extra={
+                    "request_id": get_request_id(),
+                    "expert_id": expert_id,
+                    "domain": expert.domain.value,
+                },
+            )
+            return response
+        except Exception:
+            record_domain_outcome(expert.domain.value, success=False)
+            self.logger.exception(
+                "expert.query.failed",
+                extra={
+                    "request_id": get_request_id(),
+                    "expert_id": expert_id,
+                    "domain": expert.domain.value,
+                },
+            )
+            raise
     
     async def collaborate(
         self,
@@ -304,7 +334,17 @@ class ExpertService:
                 result = await task
                 results[expert_id] = result
             except Exception as e:
-                self.logger.error(f"Error querying expert {expert_id}: {str(e)}", exc_info=True)
+                domain = experts[expert_id].domain.value if expert_id in experts else "unknown"
+                record_domain_outcome(domain, success=False)
+                self.logger.error(
+                    f"Error querying expert {expert_id}: {str(e)}",
+                    exc_info=True,
+                    extra={
+                        "request_id": get_request_id(),
+                        "expert_id": expert_id,
+                        "domain": domain,
+                    },
+                )
                 results[expert_id] = {
                     "error": str(e),
                     "success": False
@@ -331,11 +371,18 @@ class ExpertService:
                 top_p=top_p
             )
             response["success"] = True
+            record_domain_outcome(expert.domain.value, success=True)
             return response
         except Exception as e:
+            record_domain_outcome(expert.domain.value, success=False)
             self.logger.error(
                 f"Error in expert {expert.id} ({expert.domain}): {str(e)}",
-                exc_info=True
+                exc_info=True,
+                extra={
+                    "request_id": get_request_id(),
+                    "expert_id": expert.id,
+                    "domain": expert.domain.value,
+                },
             )
             return {
                 "error": str(e),
@@ -373,3 +420,15 @@ class ExpertService:
         self._experts.clear()
         self._initialized = False
         self.logger.info("ExpertService cleanup complete")
+
+
+async def get_expert_service() -> ExpertService:
+    """Dependency resolver for the singleton expert service."""
+    from ..main import expert_service
+
+    if expert_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Expert service not initialized",
+        )
+    return expert_service
