@@ -5,10 +5,10 @@ import logging
 import uuid
 from datetime import datetime
 
-from ...services.expert_service import ExpertService, get_expert_service
-from ...schemas.base import ExpertDomain, BaseResponse, ErrorResponse
-from ...schemas.request import QueryRequest, CollaborateRequest, TrainingRequest, FeedbackRequest, SearchRequest
-from ...schemas.response import (
+from app.services.expert_service import ExpertService, get_expert_service
+from app.schemas.base import ExpertDomain, BaseResponse, ErrorResponse
+from app.schemas.request import QueryRequest, CollaborateRequest, TrainingRequest, FeedbackRequest, SearchRequest
+from app.schemas.response import (
     QueryResponse,
     CollaborateResponse,
     TrainingJobResponse,
@@ -16,7 +16,7 @@ from ...schemas.response import (
     ExpertInfo,
     ExpertResponse
 )
-from ...core.workflow import Workflow, WorkflowContext, WorkflowStatus
+from app.core.workflow import Workflow, WorkflowContext, WorkflowStatus
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

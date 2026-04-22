@@ -9,7 +9,7 @@ import logging
 from typing import List, Optional, Any, Dict
 from enum import Enum
 
-from pydantic import Field, field_validator, computed_field, ConfigDict
+from pydantic import Field, field_validator, computed_field, ConfigDict, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -40,6 +40,9 @@ class LogFormat(str, Enum):
 class Settings(BaseSettings):
     """Application settings with modern Pydantic v2 configuration."""
 
+    DEFAULT_SECRET_KEY: str = "change-this-to-a-secure-random-string-in-production"
+    DEFAULT_JWT_SECRET_KEY: str = "jwt-secret-change-in-production"
+
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -63,7 +66,7 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = Field(
-        default="change-this-to-a-secure-random-string-in-production",
+        default=DEFAULT_SECRET_KEY,
         description="Secret key for cryptographic operations"
     )
 
@@ -74,10 +77,10 @@ class Settings(BaseSettings):
     API_RELOAD: bool = Field(default=True, alias="RELOAD")
 
     # CORS settings
-    ALLOWED_ORIGINS: List[str] = Field(default=["*"])
-    ALLOW_CREDENTIALS: bool = True
-    ALLOWED_METHODS: List[str] = Field(default=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-    ALLOWED_HEADERS: List[str] = Field(default=["*"])
+    ALLOWED_ORIGINS: List[str] = Field(default=[])
+    ALLOW_CREDENTIALS: bool = False
+    ALLOWED_METHODS: List[str] = Field(default=["GET", "POST", "OPTIONS"])
+    ALLOWED_HEADERS: List[str] = Field(default=["Authorization", "Content-Type"])
 
     # Logging configuration
     LOG_LEVEL: LogLevel = LogLevel.INFO
@@ -121,6 +124,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = Field(default=None, description="OpenAI API key")
     ANTHROPIC_API_KEY: Optional[str] = Field(default=None, description="Anthropic API key")
     GOOGLE_API_KEY: Optional[str] = Field(default=None, description="Google AI API key")
+    ENABLE_OPENAI_PROVIDER: bool = True
+    ENABLE_ANTHROPIC_PROVIDER: bool = True
+    ENABLE_GOOGLE_PROVIDER: bool = True
 
     # Model configuration per expert
     MATH_EXPERT_MODEL: str = "gpt-4o-mini"
@@ -141,7 +147,7 @@ class Settings(BaseSettings):
 
     # Security settings
     ENABLE_AUTHENTICATION: bool = False
-    JWT_SECRET_KEY: str = Field(default="jwt-secret-change-in-production")
+    JWT_SECRET_KEY: str = Field(default=DEFAULT_JWT_SECRET_KEY)
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
 
@@ -156,7 +162,43 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         elif isinstance(v, list):
             return v
-        return ["*"]
+        return []
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        """Enforce strict security defaults in production."""
+        if not self.is_production:
+            return self
+
+        if self.SECRET_KEY == self.DEFAULT_SECRET_KEY:
+            raise ValueError("SECRET_KEY must be changed from the default in production")
+
+        if self.JWT_SECRET_KEY == self.DEFAULT_JWT_SECRET_KEY:
+            raise ValueError("JWT_SECRET_KEY must be changed from the default in production")
+
+        if not self.ALLOWED_ORIGINS or "*" in self.ALLOWED_ORIGINS:
+            raise ValueError(
+                "ALLOWED_ORIGINS must be explicitly configured in production and cannot include '*'"
+            )
+
+        enabled_provider_keys = {
+            "openai": (self.ENABLE_OPENAI_PROVIDER, self.OPENAI_API_KEY),
+            "anthropic": (self.ENABLE_ANTHROPIC_PROVIDER, self.ANTHROPIC_API_KEY),
+            "google": (self.ENABLE_GOOGLE_PROVIDER, self.GOOGLE_API_KEY),
+        }
+
+        missing_keys = [
+            provider
+            for provider, (enabled, key) in enabled_provider_keys.items()
+            if enabled and not key
+        ]
+
+        if missing_keys:
+            raise ValueError(
+                "Missing API keys for enabled providers in production: " + ", ".join(missing_keys)
+            )
+
+        return self
 
     @field_validator("ENVIRONMENT", mode="before")
     @classmethod
