@@ -135,6 +135,9 @@ class Settings(BaseSettings):
     ENABLE_METRICS: bool = True
     METRICS_PORT: int = 9090
     ENABLE_TRACING: bool = False
+    SLO_ERROR_RATE_THRESHOLD: float = 0.01
+    SLO_P95_LATENCY_MS_THRESHOLD: int = 750
+    SLO_ALERT_WINDOW_MINUTES: int = 5
 
     # Security settings
     ENABLE_AUTHENTICATION: bool = False
