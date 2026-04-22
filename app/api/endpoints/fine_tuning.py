@@ -7,9 +7,9 @@ from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from pydantic import BaseModel, Field
 
-from ....services.fine_tuning import FineTuningService, TrainingConfig
-from ....models.training import TrainingJob, TrainingStatus
-from ....database import get_db, Session
+from app.services.fine_tuning import FineTuningService, TrainingConfig
+from app.models.training import TrainingJob, TrainingStatus
+from app.database import get_db, Session
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
