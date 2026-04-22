@@ -5,6 +5,7 @@ A high-performance API for interacting with specialized AI experts
 in various domains including math, coding, and general knowledge.
 """
 import logging
+from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -150,14 +151,16 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS configuration
-origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=settings.ALLOW_CREDENTIALS,
+    allow_methods=settings.ALLOWED_METHODS,
+    allow_headers=settings.ALLOWED_HEADERS,
 )
+
+# Authentication/authorization for sensitive endpoints
+app.add_middleware(AuthzMiddleware)
 
 # Add logging middleware
 from app.middleware.logging_middleware import LoggingMiddleware
