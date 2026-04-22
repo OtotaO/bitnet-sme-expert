@@ -8,6 +8,15 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/Tests-Pytest-orange?logo=pytest)](https://pytest.org)
+[![CI](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/ci.yml/badge.svg)](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/ci.yml)
+[![Security Scans](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/security.yml/badge.svg)](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/security.yml)
+
+
+### CI/CD and Branch Protection
+
+- Core checks run in **CI** (`lint`, `test`, `build-container`) via `make lint`, `make test`, and `make build`.
+- Security checks run in **Security Scans** with Bandit configured to fail on high-severity findings and `pip-audit` for dependency vulnerabilities.
+- To enforce required checks on `main`, add a repository secret named `BRANCH_PROTECTION_TOKEN` (PAT with `repo` admin scope), then run the **Configure Branch Protection** workflow manually from the Actions tab.
 
 ## 🎯 Overview
 
