@@ -400,6 +400,7 @@ class ExpertService:
             "response": response_text,
             "confidence": float(response.get("confidence", metadata.get("confidence", 0.0))),
             "tokens_used": int(tokens_used),
+            "model": str(response.get("model", metadata.get("model", "unknown"))),
             "metadata": metadata,
             "sources": sources
         }

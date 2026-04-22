@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from ...services.expert_service import ExpertService, get_expert_service
-from ...schemas.base import ExpertDomain, BaseResponse
+from ...schemas.base import ExpertDomain
 from ...schemas.request import QueryRequest, CollaborateRequest, TrainingRequest, FeedbackRequest, SearchRequest
 from ...schemas.response import (
     QueryResponse,
@@ -12,6 +12,7 @@ from ...schemas.response import (
     TrainingJobResponse,
     ListExpertsResponse,
     ExpertResponse,
+    AckResponse,
     SearchResponse,
     SearchResultsPayload,
     SearchResult
@@ -23,14 +24,14 @@ router = APIRouter()
 
 @router.get(
     "/health",
-    response_model=BaseResponse[None],
+    response_model=AckResponse,
     summary="Health check",
     description="Check if the API is running",
     tags=["System"]
 )
 async def health_check():
     """Health check endpoint."""
-    return BaseResponse(
+    return AckResponse(
         success=True,
         message="API is running",
         timestamp=datetime.utcnow()
@@ -232,7 +233,7 @@ async def collaborate(
                     confidence=response.get("confidence", 1.0),
                     model=response.get("model", "unknown"),
                     tokens_used=response.get("tokens_used", 0),
-                    processing_time=response.get("processing_time", 0),
+                    processing_time=response.get("metadata", {}).get("processing_time", 0.0),
                     metadata=response.get("metadata", {}),
                     sources=response.get("sources", [])
                 )
@@ -305,7 +306,7 @@ async def train_expert(
 
 @router.post(
     "/feedback",
-    response_model=BaseResponse[None],
+    response_model=AckResponse,
     summary="Provide feedback",
     description="Provide feedback on an expert's response",
     tags=["Feedback"]
@@ -323,7 +324,7 @@ async def submit_feedback(
             f"rating={request.rating}, feedback={request.feedback}"
         )
         
-        return BaseResponse(
+        return AckResponse(
             success=True,
             message="Feedback received, thank you!",
             timestamp=datetime.utcnow(),

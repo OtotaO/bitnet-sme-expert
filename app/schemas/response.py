@@ -33,6 +33,10 @@ class QueryResponse(BaseResponse[ExpertResponse]):
     )
     data: ExpertResponse = Field(..., description="The expert's response")
 
+class AckResponse(BaseResponse[None]):
+    """Standard acknowledgment response without a data payload."""
+    data: None = None
+
 class CollaborateResponse(BaseResponse[Dict[str, ExpertResponse]]):
     """Response model for collaboration between multiple experts."""
     query_id: str = Field(..., description="Unique identifier for the query")

@@ -7,7 +7,7 @@ in various domains including math, coding, and general knowledge.
 import os
 import logging
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -174,16 +174,6 @@ app.add_middleware(
 # Add logging middleware
 from .middleware.logging_middleware import LoggingMiddleware
 app.middleware("http")(LoggingMiddleware())
-
-# Dependency to get the expert service
-async def get_expert_service() -> ExpertService:
-    """Dependency to get the expert service instance."""
-    if expert_service is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Expert service not initialized",
-        )
-    return expert_service
 
 # Include API routers
 app.include_router(api_router, prefix="/api/v1")

@@ -168,6 +168,7 @@ class BaseExpert(ABC):
             "response": response_text,
             "confidence": float(output.get("confidence", metadata.get("confidence", 0.0))),
             "tokens_used": int(tokens_used),
+            "model": str(output.get("model", metadata.get("model", self.config.model_name))),
             "metadata": metadata,
             "sources": sources
         }
