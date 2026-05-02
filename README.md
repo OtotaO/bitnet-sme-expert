@@ -1,6 +1,6 @@
 # 🚀 BitNet SME Expert System v2.0
 
-**Production-Ready Multi-Model AI Expert System** — A comprehensive, scalable expert system that integrates multiple AI providers (OpenAI, Anthropic, Google) to provide specialized expertise in mathematics, code generation, and general knowledge domains.
+**Multi-Model AI Expert System (Beta)** — A scalable expert system that integrates multiple AI providers (OpenAI, Anthropic, Google) to provide specialized expertise in mathematics, code generation, and general knowledge domains.
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104%2B-green?logo=fastapi)](https://fastapi.tiangolo.com)
@@ -543,4 +543,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ by [SUM Equities](https://sumequities.com)**
 
-*Transforming AI capabilities into production-ready expert systems.*
+*Building toward production: a beta-stage multi-model expert system framework.*
