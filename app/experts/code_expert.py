@@ -544,7 +544,7 @@ def test_edge_cases():
         # In a real implementation, this would analyze the code and generate documentation
         # For now, we'll return a simple response
         
-        documented_code = f""""""
+        documented_code = f"""
 Module/Function Documentation
 
 In a real implementation, this would include:

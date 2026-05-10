@@ -2,26 +2,14 @@
 
 from __future__ import annotations
 
-A high-performance API for interacting with specialized AI experts
-in various domains including math, coding, and general knowledge.
-"""
 import logging
-from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException, status, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict
 
 import redis
 import uvicorn
-import os
-from datetime import datetime
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,17 +20,13 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from sqlalchemy import text
 
-# Load environment variables
-load_dotenv()
-
-# Initialize database
-from app.database import init_db, engine, Base
-Base.metadata.create_all(bind=engine)
-init_db()
-
-from app.config import settings
-from app.api.endpoints import api_router
-from app.services.expert_service import ExpertService
+from .api.endpoints import router as api_router
+from .api.endpoints.fine_tuning import router as fine_tuning_router
+from .config import settings
+from .database import Base, engine, init_db
+from .middleware.logging_middleware import LoggingMiddleware
+from .observability import configure_logging
+from .services.expert_service import ExpertService
 
 load_dotenv()
 
@@ -75,13 +59,13 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         if expert_service:
             await expert_service.cleanup()
 
-async def register_experts(service: ExpertService):
-    """Register all available expert implementations."""
-    from app.experts.math_expert import MathExpert
-    from app.experts.code_expert import CodeExpert
-    from app.experts.general_expert import GeneralExpert
-    
-    # Register expert classes
+
+async def register_experts(service: ExpertService) -> None:
+    """Register all expert implementations."""
+    from .experts.code_expert import CodeExpert
+    from .experts.general_expert import GeneralExpert
+    from .experts.math_expert import MathExpert
+
     service.register_expert_class(
         domain="math",
         expert_class=MathExpert,
@@ -129,7 +113,6 @@ limiter = Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIM
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -137,39 +120,49 @@ app.add_middleware(
     allow_methods=settings.ALLOWED_METHODS,
     allow_headers=settings.ALLOWED_HEADERS,
 )
-
-# Authentication/authorization for sensitive endpoints
-app.add_middleware(AuthzMiddleware)
-
-# Add logging middleware
-from app.middleware.logging_middleware import LoggingMiddleware
 app.middleware("http")(LoggingMiddleware())
 
-# Dependency to get the expert service
-async def get_expert_service() -> ExpertService:
-    """Dependency to get the expert service instance."""
-    if expert_service is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Expert service not initialized",
-        )
-    return expert_service
+app.include_router(api_router, prefix=settings.API_PREFIX)
+app.include_router(fine_tuning_router, prefix=settings.API_PREFIX)
 
-# Include API routers
-app.include_router(api_router, prefix="/api/v1")
 
-# Health check endpoint
-@app.get("/health")
-@limiter.limit("10/minute")
-async def health_check(request: Request):
-    """Health check endpoint."""
-    return {
-        "status": "ok",
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": "0.1.0",
-        "rate_limit": {
-            "limit": request.scope.get("rate_limit", "").split("/")[0],
-            "remaining": request.scope.get("remaining", 0)
+def _check_database() -> Dict[str, Any]:
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+    return {"status": "ok"}
+
+
+def _check_redis() -> Dict[str, Any]:
+    if not settings.REDIS_URL:
+        return {"status": "skipped", "reason": "REDIS_URL not configured"}
+    client = redis.from_url(settings.REDIS_URL, decode_responses=settings.REDIS_DECODE_RESPONSES)
+    try:
+        ping_ok = client.ping()
+        return {"status": "ok" if ping_ok else "error"}
+    finally:
+        client.close()
+
+
+def _check_providers() -> Dict[str, Dict[str, str]]:
+    results: Dict[str, Dict[str, str]] = {}
+
+    if settings.OPENAI_API_KEY:
+        from openai import OpenAI
+
+        OpenAI(api_key=settings.OPENAI_API_KEY)
+        results["openai"] = {"status": "ok"}
+    else:
+        results["openai"] = {"status": "skipped", "reason": "OPENAI_API_KEY not configured"}
+
+    if settings.ANTHROPIC_API_KEY:
+        from anthropic import Anthropic
+
+        Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        results["anthropic"] = {"status": "ok"}
+    else:
+        results["anthropic"] = {
+            "status": "skipped",
+            "reason": "ANTHROPIC_API_KEY not configured",
         }
 
     if settings.GOOGLE_API_KEY:
@@ -219,24 +212,32 @@ async def readiness() -> Dict[str, Any]:
         "checks": checks,
     }
 
-# Cache statistics endpoint
-@app.get("/cache/stats")
-async def cache_stats():
-    """Get cache statistics."""
-    from app.utils.cache import cache
+    if failures:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=payload)
+
+    return payload
+
+
+@app.get("/metrics")
+async def metrics() -> PlainTextResponse:
+    """Expose Prometheus metrics for scraping."""
+    return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+@app.get("/monitoring/alerts/thresholds")
+async def alert_thresholds() -> Dict[str, Any]:
+    """Expose configured SLO-based alert thresholds."""
     return {
         "error_rate_ratio": settings.SLO_ERROR_RATE_THRESHOLD,
         "p95_latency_ms": settings.SLO_P95_LATENCY_MS_THRESHOLD,
         "window_minutes": settings.SLO_ALERT_WINDOW_MINUTES,
     }
 
-# Clear cache endpoint (protected by rate limiting)
-@app.post("/cache/clear")
-@limiter.limit("1/minute")
-async def clear_cache(request: Request):
-    """Clear the cache."""
-    from app.utils.cache import cache
-    cache.clear()
+
+@app.get("/health")
+@limiter.limit("10/minute")
+async def health_check(request: Request) -> Dict[str, Any]:
+    """Backwards-compatible health endpoint."""
     return {
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
