@@ -1,0 +1,10 @@
+{"request": "Write a Python function that returns the factorial of n", "language": "python", "must_contain": ["def", "factorial", "return"]}
+{"request": "Write a Python function to check if a number is prime", "language": "python", "must_contain": ["def", "prime", "return"]}
+{"request": "Write a fibonacci generator in Python", "language": "python", "must_contain": ["def", "fib"]}
+{"request": "Write a JavaScript function to reverse a string", "language": "javascript", "must_contain": ["function", "reverse"]}
+{"request": "Write a Python function to compute the GCD of two integers", "language": "python", "must_contain": ["def", "gcd"]}
+{"request": "Write a Python implementation of binary search", "language": "python", "must_contain": ["def", "binary_search"]}
+{"request": "Write a Rust function that doubles every element of a Vec<i32>", "language": "rust", "must_contain": ["fn", "Vec"]}
+{"request": "Write a SQL query that selects the top 10 customers by total order value", "language": "sql", "must_contain": ["SELECT", "ORDER BY", "LIMIT"]}
+{"request": "Write a Python function that flattens a nested list one level deep", "language": "python", "must_contain": ["def", "flatten"]}
+{"request": "Write a Python decorator that measures function runtime", "language": "python", "must_contain": ["def", "wrapper", "time"]}

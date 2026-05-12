@@ -1,63 +1,71 @@
-# Multi-stage build for production-ready BitNet SME Expert System
-FROM python:3.11-slim as base
+# syntax=docker/dockerfile:1.7
+# Multi-stage build using uv. 2026 default for new Python projects.
+ARG PYTHON_VERSION=3.12
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+# ---------------------------------------------------------------------------
+# Stage 1: build dependencies into an isolated virtualenv
+# ---------------------------------------------------------------------------
+FROM ghcr.io/astral-sh/uv:python${PYTHON_VERSION}-bookworm-slim AS builder
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN groupadd --gid 1000 appuser \
-    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
 
 WORKDIR /app
 
-# Development stage
-FROM base as development
+# Cache dependencies independently of source.
+COPY pyproject.toml uv.lock* ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project || \
+    uv sync --no-dev --no-install-project
 
-# Install development dependencies
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY app ./app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev || uv sync --no-dev
 
-# Copy application code
-COPY --chown=appuser:appuser . .
+# ---------------------------------------------------------------------------
+# Stage 2: runtime image
+# ---------------------------------------------------------------------------
+FROM python:${PYTHON_VERSION}-slim AS production
 
-USER appuser
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-# Expose port
-EXPOSE 8000
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1000 appuser \
+    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
 
-# Development command
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-
-# Production stage
-FROM base as production
-
-# Install only production dependencies
-COPY requirements.txt .
-RUN pip install --no-dev -r requirements.txt \
-    && rm -rf /root/.cache/pip
-
-# Copy application code
+COPY --from=builder /opt/venv /opt/venv
+WORKDIR /app
 COPY --chown=appuser:appuser app ./app
-COPY --chown=appuser:appuser alembic.ini ./
-COPY --chown=appuser:appuser alembic ./alembic
+COPY --chown=appuser:appuser pyproject.toml ./
 
 USER appuser
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Expose port
 EXPOSE 8000
 
-# Production command
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS http://localhost:8000/health/live || exit 1
+
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+
+# ---------------------------------------------------------------------------
+# Stage 3: development image (includes dev deps + hot reload)
+# ---------------------------------------------------------------------------
+FROM ghcr.io/astral-sh/uv:python${PYTHON_VERSION}-bookworm-slim AS development
+
+ENV UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+COPY pyproject.toml uv.lock* ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync || true
+
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

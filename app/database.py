@@ -1,46 +1,43 @@
-"""Database utilities and session management."""
-from typing import Generator
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from contextlib import contextmanager
+"""SQLAlchemy 2.0-style database setup."""
+
+from __future__ import annotations
+
 import os
+from contextlib import contextmanager
+from typing import Generator
 
-# Database URL - can be overridden by environment variable
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bitnet_sme.db")
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-# Create SQLAlchemy engine
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dspy_sme.db")
 
-# Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+_engine_kwargs: dict = {}
+if DATABASE_URL.startswith("sqlite"):
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
 
-# Base class for models
-Base = declarative_base()
+engine = create_engine(DATABASE_URL, **_engine_kwargs)
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
-def init_db():
-    """Initialize the database."""
-    from .models.training import Base as TrainingBase
-    
-    # Create all tables
+
+class Base(DeclarativeBase):
+    """Declarative base for ORM models."""
+
+
+def init_db() -> None:
+    """Bootstrap tables. Alembic owns migrations in production."""
     Base.metadata.create_all(bind=engine)
-    
-    # Import models to ensure they are registered with SQLAlchemy
-    from .models import training  # noqa
+
 
 @contextmanager
 def get_db() -> Generator[Session, None, None]:
-    """Get a database session."""
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-def get_db_session() -> Session:
-    """Get a database session (for use with FastAPI Depends)."""
+
+def get_db_session() -> Generator[Session, None, None]:
+    """FastAPI dependency wrapper."""
     with get_db() as db:
         yield db

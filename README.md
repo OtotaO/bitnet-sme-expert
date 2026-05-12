@@ -1,546 +1,187 @@
-# 🚀 BitNet SME Expert System v2.0
+# dspy-sme-expert
 
-**Multi-Model AI Expert System (Beta)** — A scalable expert system that integrates multiple AI providers (OpenAI, Anthropic, Google) to provide specialized expertise in mathematics, code generation, and general knowledge domains.
+**DSPy-powered multi-expert SME system.** A FastAPI service that routes
+questions to domain-specialist `dspy.Module`s (math, code, general), with
+LiteLLM provider routing, MLflow tracing, optional local inference via
+`bitnet.cpp`, and a `dspy.Evaluate` harness driving MIPROv2 / GEPA
+optimization.
 
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104%2B-green?logo=fastapi)](https://fastapi.tiangolo.com)
-[![Pydantic](https://img.shields.io/badge/Pydantic-v2-red?logo=pydantic)](https://pydantic.dev)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://docker.com)
+[![Python](https://img.shields.io/badge/Python-3.12%2B-blue?logo=python)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-green?logo=fastapi)](https://fastapi.tiangolo.com)
+[![DSPy](https://img.shields.io/badge/DSPy-3.2-orange)](https://dspy.ai)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/Tests-Pytest-orange?logo=pytest)](https://pytest.org)
-[![CI](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/ci.yml/badge.svg)](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/ci.yml)
-[![Security Scans](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/security.yml/badge.svg)](https://github.com/OtotaO/bitnet-sme-expert/actions/workflows/security.yml)
 
-
-### CI/CD and Branch Protection
-
-- Core checks run in **CI** (`lint`, `test`, `build-container`) via `make lint`, `make test`, and `make build`.
-- Security checks run in **Security Scans** with Bandit configured to fail on high-severity findings and `pip-audit` for dependency vulnerabilities.
-- To enforce required checks on `main`, add a repository secret named `BRANCH_PROTECTION_TOKEN` (PAT with `repo` admin scope), then run the **Configure Branch Protection** workflow manually from the Actions tab.
-
-## 🎯 Overview
-
-The BitNet SME Expert System represents the evolution of AI-powered expert systems, combining the strengths of multiple large language models to provide specialized, domain-specific expertise. Built with modern Python frameworks and enterprise-grade architecture patterns.
-
-### Key Features
-
-- **🧠 Multi-Expert Architecture**: Specialized AI experts for mathematics, code generation, and general knowledge
-- **🔄 Multi-Provider Support**: Seamlessly integrates OpenAI GPT-4, Anthropic Claude, and Google Gemini
-- **⚡ High Performance**: Async/await throughout, optimized for concurrent requests
-- **🛡️ Production Ready**: Comprehensive error handling, logging, monitoring, and security
-- **🐳 Containerized**: Docker and Docker Compose ready for any deployment
-- **📊 Observable**: Built-in metrics, health checks, and structured logging
-- **🧪 Evidence-Based Delivery**: Quality claims are tied to CI workflow status, coverage artifacts, and versioned release notes
-
-
-## ✅ Delivery Evidence
-
-Project quality and release claims should be validated from CI-linked evidence:
-
-- **Workflow badges**: CI and security badges above must be green for the release commit.
-- **Coverage artifact**: Coverage results are published and linked in [`docs/coverage-report.md`](docs/coverage-report.md).
-- **Versioned release notes**: Every release must be captured in [`CHANGELOG.md`](CHANGELOG.md).
-- **Release gate checklist**: Production releases must pass [`docs/release-readiness.md`](docs/release-readiness.md).
-- **Version policy**: Compatibility expectations are defined in [`docs/semantic-versioning.md`](docs/semantic-versioning.md).
-
-## 🏗️ Architecture
-
-### System Design
-
-```mermaid
-graph TB
-    A[Client Request] --> B[FastAPI Router]
-    B --> C[Expert Service]
-    C --> D{Expert Type}
-    D -->|Math| E[Math Expert]
-    D -->|Code| F[Code Expert]
-    D -->|General| G[General Expert]
-    E --> H[OpenAI/Anthropic/Google]
-    F --> H
-    G --> H
-    H --> I[Response Processing]
-    I --> J[Cache Layer]
-    J --> K[Client Response]
-```
-
-### Core Components
-
-- **Expert Service**: Orchestrates expert selection and request routing
-- **Domain Experts**: Specialized AI agents with tailored prompts and configurations
-- **Provider Abstraction**: Unified interface for multiple AI providers
-- **Caching Layer**: Redis-based intelligent caching for performance
-- **Monitoring Stack**: Prometheus metrics with Grafana dashboards
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Python 3.9+** (recommended: 3.11+)
-- **Docker & Docker Compose** (for containerized deployment)
-- **Redis** (for caching, optional)
-- **PostgreSQL** (for production, SQLite for development)
-
-### 1. Clone and Setup
-
-```bash
-git clone <repository-url>
-cd bitnet-sme-expert
-```
-
-### 2. Environment Configuration
-
-```bash
-# Copy environment template
-cp .env.example .env
-
-# Edit with your API keys and configuration
-nano .env
-```
-
-**Required Environment Variables:**
-```env
-# AI Provider API Keys
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-GOOGLE_API_KEY=your_google_api_key_here
-
-# Application Configuration
-ENVIRONMENT=development
-DATABASE_URL=sqlite:///./bitnet_sme.db
-REDIS_URL=redis://localhost:6379/0
-```
-
-## 🔐 Secure Production Deployment
-
-Use the production template and set every secret/provider flag explicitly:
-
-```bash
-cp .env.production.example .env
-```
-
-Production hardening requirements:
-
-- `ENVIRONMENT=production` must be set.
-- `SECRET_KEY` and `JWT_SECRET_KEY` **must not** use default placeholder values.
-- `ALLOWED_ORIGINS` must be an explicit allowlist (wildcard `*` is rejected in production).
-- For each enabled provider (`ENABLE_OPENAI_PROVIDER`, `ENABLE_ANTHROPIC_PROVIDER`, `ENABLE_GOOGLE_PROVIDER`), the matching API key must be present.
-- Sensitive endpoints (`/cache/clear`, fine-tuning routes, training job status/list) require a valid Bearer JWT with appropriate role claims.
-
-JWT role expectations for sensitive endpoints:
-
-- `admin`: required for `/cache/clear`, `/api/v1/train`, `/api/v1/fine-tune`
-- `admin` or `operator`: required for `/api/v1/training/status/{job_id}` and `/api/v1/training/jobs`
-
-You can provide roles via either `role` (string) or `roles` (string list) claims in the JWT.
-
-### 3. Installation Methods
-
-#### Option A: Docker Compose (Recommended)
-```bash
-# Start all services (API, database, cache, monitoring)
-docker-compose up --build
-
-# API will be available at http://localhost:8000
-# Grafana dashboard at http://localhost:3001 (admin/admin)
-```
-
-#### Option B: Local Development
-```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start development server
-make dev
-# or
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 4. Verify Installation
-
-```bash
-# Check API health
-curl http://localhost:8000/health
-
-# List available experts
-curl http://localhost:8000/api/v1/experts
-
-# Test query
-curl -X POST http://localhost:8000/api/v1/query \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "question": "What is 2 + 2?",
-    "domain": "math"
-  }'
-```
-
-## 📚 API Documentation
-
-### Interactive Documentation
-
-Once running, visit:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-### Core Endpoints
-
-#### Query Expert
-```http
-POST /api/v1/query
-Content-Type: application/json
-
-{
-  "question": "Explain quantum computing",
-  "domain": "general",
-  "context": {
-    "max_tokens": 1000,
-    "temperature": 0.7
-  }
-}
-```
-
-#### List Experts
-```http
-GET /api/v1/experts
-```
-
-#### Health Check
-```http
-GET /health
-```
-
-### Expert Domains
-
-| Domain | Description | Best For | Default Model |
-|--------|-------------|----------|---------------|
-| `math` | Mathematical problem solving | Equations, calculus, statistics | GPT-4o-mini |
-| `code` | Programming and software development | Code generation, debugging, algorithms | Claude-3.5-Haiku |
-| `general` | General knowledge and reasoning | Questions, explanations, analysis | GPT-4o-mini |
-
-## 🧪 Expert Capabilities
-
-### Mathematics Expert
-```python
-# Complex mathematical problems
-{
-  "question": "Find the derivative of f(x) = x^3 * sin(x)",
-  "domain": "math"
-}
-
-# Statistical analysis
-{
-  "question": "Calculate the standard deviation of [1,2,3,4,5]",
-  "domain": "math"
-}
-```
-
-### Code Expert
-```python
-# Algorithm implementation
-{
-  "question": "Implement quicksort in Python with comments",
-  "domain": "code",
-  "context": {"language": "python"}
-}
-
-# Code review and optimization
-{
-  "question": "Optimize this SQL query: SELECT * FROM users WHERE age > 18",
-  "domain": "code",
-  "context": {"language": "sql"}
-}
-```
-
-### General Expert
-```python
-# Explanation and analysis
-{
-  "question": "Explain the impact of climate change on ocean currents",
-  "domain": "general"
-}
-
-# Research and summarization
-{
-  "question": "Compare renewable energy sources",
-  "domain": "general",
-  "context": {"format": "bullet_points"}
-}
-```
-
-## 🔧 Development
-
-### Development Commands
-
-```bash
-# Install development environment
-make install-dev
-
-# Start development server with hot reload
-make dev
-
-# Run tests
-make test
-
-# Run linting and formatting
-make lint
-make format
-
-# Run security checks
-make security
-
-# Generate documentation
-make docs
-
-# View all commands
-make help
-```
-
-### Project Structure
-
-```
-bitnet-sme-expert/
-├── app/                          # Application source code
-│   ├── api/                     # API routes and endpoints
-│   ├── core/                    # Core business logic
-│   ├── experts/                 # Expert implementations
-│   ├── middleware/              # Custom middleware
-│   ├── models/                  # Database models
-│   ├── schemas/                 # Pydantic schemas
-│   ├── services/                # Business services
-│   ├── utils/                   # Utility functions
-│   ├── config.py               # Configuration management
-│   ├── database.py             # Database setup
-│   └── main.py                 # FastAPI application
-├── tests/                       # Test suite
-├── monitoring/                  # Monitoring configurations
-├── docs/                       # Documentation
-├── docker-compose.yml          # Development stack
-├── Dockerfile                  # Container definition
-├── requirements.txt            # Python dependencies
-├── pyproject.toml             # Project configuration
-└── Makefile                   # Development commands
-```
-
-### Adding New Experts
-
-1. **Create Expert Class** in `app/experts/`
-```python
-from .base_expert import BaseExpert
-
-class MyExpert(BaseExpert):
-    async def generate(self, question: str, context: dict) -> dict:
-        # Implementation here
-        pass
-```
-
-2. **Register Expert** in `app/services/expert_service.py`
-```python
-self.experts["my_domain"] = MyExpert(config)
-```
-
-3. **Add Tests** in `tests/test_experts/`
-
-### Configuration
-
-All configuration is managed through environment variables and `app/config.py`. Key settings:
-
-- **Model Selection**: Choose different models per expert domain
-- **Performance Tuning**: Adjust timeouts, concurrency, caching
-- **Security**: Rate limiting, CORS, authentication
-- **Monitoring**: Metrics collection, logging levels
-
-## 🚀 Deployment
-
-### Production Deployment
-
-#### Option 1: Docker Production Build
-```bash
-# Build production image
-make build-prod
-
-# Run with production configuration
-docker run -p 8000:8000 \\
-  -e ENVIRONMENT=production \\
-  -e DATABASE_URL=$DATABASE_URL \\
-  -e OPENAI_API_KEY=$OPENAI_API_KEY \\
-  bitnet-sme-expert:prod
-```
-
-#### Option 2: Kubernetes
-```yaml
-# Example k8s deployment
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: bitnet-sme-expert
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: bitnet-sme-expert
-  template:
-    metadata:
-      labels:
-        app: bitnet-sme-expert
-    spec:
-      containers:
-      - name: api
-        image: bitnet-sme-expert:prod
-        ports:
-        - containerPort: 8000
-        env:
-        - name: ENVIRONMENT
-          value: production
-```
-
-#### Option 3: Cloud Platforms
-- **AWS**: Use ECS, Lambda, or Elastic Beanstalk
-- **GCP**: Deploy to Cloud Run, GKE, or App Engine
-- **Azure**: Use Container Instances, AKS, or App Service
-
-### Performance Optimization
-
-- **Horizontal Scaling**: Multiple worker processes/containers
-- **Caching**: Redis for response caching and rate limiting
-- **Load Balancing**: Nginx or cloud load balancer
-- **Database**: PostgreSQL with connection pooling
-- **Monitoring**: Prometheus + Grafana for observability
-
-## 📊 Monitoring & Observability
-
-### Built-in Monitoring
-
-- **Health Checks**: `/health` endpoint with dependency checks
-- **Metrics**: Prometheus metrics on `/metrics`
-- **Structured Logging**: JSON logs with correlation IDs
-- **Performance Tracking**: Request duration, error rates
-
-### Grafana Dashboards
-
-Pre-configured dashboards for:
-- API performance and error rates
-- Expert usage patterns
-- Resource utilization
-- Cache hit rates
-
-### Alerting
-
-Configure alerts for:
-- High error rates
-- Response time degradation
-- API key quota exhaustion
-- Database connection issues
-
-## 🧪 Testing
-
-### Running Tests
-
-```bash
-# Run all tests with coverage
-make test
-
-# Run specific test categories
-pytest tests/test_experts/ -v
-pytest tests/test_api/ -v
-
-# Run with coverage report
-pytest --cov=app --cov-report=html
-```
-
-### Test Categories
-
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: API endpoint testing
-- **Performance Tests**: Load and stress testing
-- **Security Tests**: Vulnerability scanning
-
-### Continuous Integration
-
-GitHub Actions workflows are the source of truth for release readiness. Maintain:
-- CI workflow results (tests, lint, build)
-- Security scanning workflow results
-- Coverage artifact publication and link updates in `docs/coverage-report.md`
-- Release-note updates in `CHANGELOG.md`
-
-## 🔐 Security
-
-### Security Features
-
-- **Input Validation**: Pydantic schemas with strict validation
-- **Rate Limiting**: Configurable per-endpoint rate limits
-- **API Key Management**: Secure environment variable handling
-- **CORS Configuration**: Configurable cross-origin policies
-- **Error Handling**: Secure error responses without information leakage
-
-### Security Best Practices
-
-1. **API Keys**: Store in secure environment variables or key vaults
-2. **Authentication**: Enable JWT authentication for production
-3. **HTTPS**: Always use TLS in production
-4. **Updates**: Regular dependency updates with security scanning
-5. **Monitoring**: Log and monitor for suspicious activity
-
-## 🤝 Contributing
-
-### Development Workflow
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Install** pre-commit hooks (`pre-commit install`)
-4. **Make** your changes with tests
-5. **Run** quality checks (`make check`)
-6. **Commit** with conventional commits
-7. **Push** and create a Pull Request
-
-### Code Standards
-
-- **Python**: Follow PEP 8 with black formatting
-- **Type Hints**: Full type annotation required
-- **Documentation**: Docstrings for all public functions
-- **Testing**: Tests required for new features
-- **Security**: Security review for external integrations
-
-## 📈 Roadmap
-
-### Upcoming Features
-
-- [ ] **Fine-tuning Support**: Custom model fine-tuning capabilities
-- [ ] **Streaming Responses**: Real-time response streaming
-- [ ] **Multi-modal**: Image and document processing experts
-- [ ] **Workflow Engine**: Complex multi-step expert interactions
-- [ ] **A/B Testing**: Built-in experiment framework
-- [ ] **Advanced Analytics**: Usage patterns and optimization insights
-
-### Performance Goals
-
-- [ ] **Sub-100ms P95**: Response time optimization
-- [ ] **99.9% Uptime**: High availability architecture
-- [ ] **10K+ RPS**: Horizontal scaling capabilities
-- [ ] **Cost Optimization**: Intelligent model routing for cost efficiency
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **FastAPI**: Modern, fast web framework for building APIs
-- **Pydantic**: Data validation and settings management using Python type annotations
-- **OpenAI**: GPT models for natural language processing
-- **Anthropic**: Claude models for advanced reasoning
-- **Google**: Gemini models for multi-modal capabilities
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/sumequities/bitnet-sme-expert/issues)
-- **Documentation**: [Full Documentation](https://bitnet-sme-expert.readthedocs.io)
-- **Email**: [hi@sumequities.com](mailto:hi@sumequities.com)
+> Previously branded "BitNet SME Expert v2.0". Renamed in v3.0 because the
+> previous incarnation was a multi-provider FastAPI shell with hardcoded
+> string stubs in place of every expert, and zero DSPy or BitNet code. v3
+> rebuilds the expert layer on DSPy 3.2 and adds `bitnet.cpp` as an
+> _optional_ local provider rather than a marketing centerpiece.
 
 ---
 
-**Built with ❤️ by [SUM Equities](https://sumequities.com)**
+## What changed in v3.0
 
-*Building toward production: a beta-stage multi-model expert system framework.*
+| Layer | v2 | v3 |
+| --- | --- | --- |
+| Expert layer | Hardcoded canned-string stubs | `dspy.Module`s with typed signatures |
+| Math | Regex routing + sympy fallback | `dspy.ReAct(SolveMathProblem, tools=[sympy_*])` + deterministic fast-path |
+| Code | Pattern matching + template strings | `dspy.ChainOfThought(GenerateCode)` |
+| General | Random pick from canned responses | `dspy.ChainOfThought(AnswerGeneralQuestion)` |
+| Routing | Hardcoded keyword `if/elif` | `RouterProgram` (`dspy.ChainOfThought`) — optimizable |
+| Multi-provider | Three SDKs imported, none called | `dspy.LM` over LiteLLM, per-role fallback chains |
+| Optimization | n/a | `MIPROv2` / `GEPA` via `scripts/optimize.py`, persisted to `compiled/` |
+| Observability | structlog + Prometheus | + `mlflow.dspy.autolog()` (OTel traces, optimizer runs) |
+| Package mgmt | `requirements.txt` + `pyproject.toml` (drift) | `uv` + single `pyproject.toml` + `uv.lock` |
+| Python | 3.9+ | 3.12+ |
+| Pydantic | mixed v1/v2 | v2 throughout |
+| JWT | `python-jose` (unmaintained) | `PyJWT` |
+| BitNet | name only | optional `bitnet.cpp` provider via OpenAI-compatible llama-server |
+
+## Architecture
+
+```mermaid
+graph TB
+    A[Client] --> B[FastAPI<br/>app.main]
+    B --> C[Auth + Logging + Rate-limit<br/>middleware]
+    C --> D[ExpertService]
+    D --> E[RouterProgram<br/>dspy.ChainOfThought]
+    E --> F{domain}
+    F -->|math| G[MathExpert<br/>dspy.ReAct + sympy tools]
+    F -->|code| H[CodeExpert<br/>dspy.ChainOfThought]
+    F -->|general| I[GeneralExpert<br/>dspy.ChainOfThought]
+    G --> J[dspy.LM via LiteLLM]
+    H --> J
+    I --> J
+    J -->|OpenAI/Anthropic/Gemini| K[Provider APIs]
+    J -->|local bitnet.cpp| L[llama-server :8080]
+    J -.->|autolog| M[MLflow<br/>traces + optimizer runs]
+```
+
+## Quickstart
+
+```bash
+# 1. Get uv if you don't already have it.
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Install everything.
+uv sync --all-extras
+
+# 3. Configure providers.
+cp .env.example .env
+$EDITOR .env   # at minimum set OPENAI_API_KEY (or override DSPY_LM_*)
+
+# 4. Run.
+uv run uvicorn app.main:app --reload
+# -> http://localhost:8000/docs
+```
+
+One-shot query without spinning up the server:
+
+```bash
+uv run dspy-sme query "What is the derivative of x^3 + 2x?" --domain math
+```
+
+## Optimization loop
+
+```bash
+# Baseline + MIPROv2 light compile (saves to compiled/math.json)
+make optimize-math
+
+# Or use GEPA for reflection-based prompt evolution
+make optimize-math-gepa
+```
+
+Compiled programs are loaded automatically at startup. To re-run the eval
+harness against the compiled programs:
+
+```bash
+RUN_EVAL=1 uv run pytest tests/eval -v -s
+```
+
+## Optional: local inference with `bitnet.cpp`
+
+`bitnet.cpp` ships an OpenAI-compatible `llama-server` (built during its
+`setup_env.py` cmake step). Wire it up as any other `dspy.LM`:
+
+```bash
+# One-time: clone, build, download the b1.58 2B 4T model (~3 GB)
+make bitnet-setup
+
+# Serve it locally on :8080
+make bitnet-serve
+
+# Tell DSPy to use it for the math expert
+export DSPY_LM_MATH="openai/bitnet"
+export DSPY_LM_MATH_API_BASE="http://localhost:8080/v1"
+export DSPY_LM_MATH_API_KEY_ENV="BITNET_DUMMY_KEY"
+export BITNET_DUMMY_KEY="local"
+```
+
+The 2B-4T BitNet model runs comfortably on CPU at 5-7 tok/s and is useful as
+a cheap fallback for PII-sensitive or offline workloads.
+
+## Observability
+
+Set `MLFLOW_TRACKING_URI` (or run `docker compose up mlflow`) to enable
+`mlflow.dspy.autolog()`. Every module call produces an OpenTelemetry span;
+every optimizer run is logged as an MLflow run with the baseline and
+optimized scores, so you can A/B compiled artifacts in the UI.
+
+## API
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET  | `/health`, `/health/live`, `/health/ready` | Probes |
+| GET  | `/metrics` | Prometheus scrape endpoint |
+| GET  | `/api/v1/experts` | List registered experts |
+| POST | `/api/v1/query` | Route a question (auto or `domain=...`) |
+| POST | `/api/v1/collaborate` | Fan out to several experts in parallel |
+| POST | `/api/v1/feedback` | Submit feedback on a previous query |
+
+Interactive docs at `/docs` (Swagger) and `/redoc`.
+
+## Project layout
+
+```
+app/
+├── main.py                  FastAPI app + lifespan
+├── cli.py                   `dspy-sme` console script
+├── llm.py                   DSPy LM configuration (LiteLLM + MLflow)
+├── config.py                Settings (Pydantic v2)
+├── observability.py         JSON logging + Prometheus metrics
+├── dspy_modules/            Signatures + Modules (the model code)
+│   ├── signatures.py
+│   ├── router.py
+│   ├── math_module.py
+│   ├── code_module.py
+│   └── general_module.py
+├── experts/                 Thin wrappers exposing the API contract
+├── services/expert_service.py
+├── api/endpoints/           FastAPI routes
+├── middleware/              CORS, auth (PyJWT), logging, errors
+├── schemas/                 Pydantic v2 request/response models
+└── ...
+scripts/
+├── optimize.py              MIPROv2 / GEPA compile pipeline
+├── bitnet_setup.sh          Build bitnet.cpp + pull the model
+└── bitnet_serve.sh          Run the llama-server
+tests/
+├── test_experts.py          Wiring smoke tests (no LM)
+└── eval/                    dspy.Evaluate gold sets + metrics (RUN_EVAL=1)
+compiled/                    Optimized programs land here (gitignored)
+```
+
+## Development
+
+```bash
+make install      # uv sync --all-extras
+make test         # unit tests (no LM)
+make test-eval    # eval tests (requires provider keys, RUN_EVAL=1)
+make lint         # ruff + mypy
+make format       # ruff format + fix
+make build        # docker build (production target)
+```
+
+## License
+
+MIT. See `LICENSE`.

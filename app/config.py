@@ -1,20 +1,23 @@
-"""
-Application configuration settings.
+"""Application configuration via Pydantic Settings v2.
 
-This module provides a centralized configuration system using environment variables
-with sensible defaults. It uses pydantic-settings for validation and type conversion.
+Provider-key validation is intentionally minimal here: DSPy / LiteLLM handle
+provider auth at request time, and missing keys surface as 4xx errors from the
+provider rather than as startup failures. Production still requires explicit
+``ALLOWED_ORIGINS`` and non-default secret keys.
 """
-import os
+
+from __future__ import annotations
+
 import logging
-from typing import List, Optional, Any, Dict
+import os
 from enum import Enum
+from typing import Any
 
-from pydantic import Field, field_validator, computed_field, ConfigDict, model_validator
-from pydantic_settings import BaseSettings
+from pydantic import Field, computed_field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Environment(str, Enum):
-    """Application environment."""
     DEVELOPMENT = "development"
     TESTING = "testing"
     STAGING = "staging"
@@ -22,7 +25,6 @@ class Environment(str, Enum):
 
 
 class LogLevel(str, Enum):
-    """Logging levels."""
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -31,19 +33,19 @@ class LogLevel(str, Enum):
 
 
 class LogFormat(str, Enum):
-    """Log format options."""
     SIMPLE = "simple"
     JSON = "json"
     DETAILED = "detailed"
 
 
+_DEFAULT_SECRET_KEY = "change-this-to-a-secure-random-string-in-production"
+_DEFAULT_JWT_SECRET_KEY = "jwt-secret-change-in-production"
+
+
 class Settings(BaseSettings):
-    """Application settings with modern Pydantic v2 configuration."""
+    """Application settings."""
 
-    DEFAULT_SECRET_KEY: str = "change-this-to-a-secure-random-string-in-production"
-    DEFAULT_JWT_SECRET_KEY: str = "jwt-secret-change-in-production"
-
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
@@ -51,93 +53,69 @@ class Settings(BaseSettings):
         validate_assignment=True,
     )
 
-    # Application settings
-    APP_NAME: str = "BitNet SME Expert System"
-    API_VERSION: str = "2.0.0"
+    # Application identity
+    APP_NAME: str = "DSPy SME Expert"
+    API_VERSION: str = "3.0.0"
     API_PREFIX: str = "/api/v1"
-    DESCRIPTION: str = """
-    Advanced BitNet SME Expert System with multi-model AI integration.
-    Provides specialized AI experts for mathematics, code generation, and general knowledge.
-    """
+    DESCRIPTION: str = "DSPy-powered multi-expert SME system with FastAPI, MLflow, and LiteLLM."
 
     # Environment
-    ENVIRONMENT: Environment = Field(default=Environment.DEVELOPMENT)
-    DEBUG: bool = Field(default=False)
+    ENVIRONMENT: Environment = Environment.DEVELOPMENT
+    DEBUG: bool = False
 
-    # Security
-    SECRET_KEY: str = Field(
-        default=DEFAULT_SECRET_KEY,
-        description="Secret key for cryptographic operations"
-    )
-
-    # Server settings
+    # Server
     API_HOST: str = Field(default="0.0.0.0", alias="HOST")
     API_PORT: int = Field(default=8000, alias="PORT")
     API_WORKERS: int = Field(default=1, alias="WORKERS")
     API_RELOAD: bool = Field(default=True, alias="RELOAD")
 
-    # CORS settings
-    ALLOWED_ORIGINS: List[str] = Field(default=[])
-    ALLOW_CREDENTIALS: bool = False
-    ALLOWED_METHODS: List[str] = Field(default=["GET", "POST", "OPTIONS"])
-    ALLOWED_HEADERS: List[str] = Field(default=["Authorization", "Content-Type"])
+    # Security
+    SECRET_KEY: str = _DEFAULT_SECRET_KEY
+    JWT_SECRET_KEY: str = _DEFAULT_JWT_SECRET_KEY
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    ENABLE_AUTHENTICATION: bool = False
 
-    # Logging configuration
+    # CORS
+    ALLOWED_ORIGINS: list[str] = Field(default_factory=list)
+    ALLOW_CREDENTIALS: bool = False
+    ALLOWED_METHODS: list[str] = Field(default_factory=lambda: ["GET", "POST", "OPTIONS"])
+    ALLOWED_HEADERS: list[str] = Field(default_factory=lambda: ["Authorization", "Content-Type"])
+
+    # Logging
     LOG_LEVEL: LogLevel = LogLevel.INFO
     LOG_FORMAT: LogFormat = LogFormat.JSON
     ENABLE_STRUCTURED_LOGGING: bool = True
 
-    # API Documentation
+    # OpenAPI
     DOCS_URL: str = "/docs"
     REDOC_URL: str = "/redoc"
     OPENAPI_URL: str = "/openapi.json"
 
-    # Expert system settings
-    DEFAULT_MODEL: str = "gpt-4o-mini"
+    # Expert defaults
+    DEFAULT_MODEL: str = "openai/gpt-4o-mini"
     MAX_TOKENS: int = 2048
     TEMPERATURE: float = 0.7
     TOP_P: float = 0.9
-    FREQUENCY_PENALTY: float = 0.0
-    PRESENCE_PENALTY: float = 0.0
 
     # Rate limiting
     RATE_LIMIT: str = "100/minute"
     ENABLE_RATE_LIMITING: bool = True
 
-    # Caching
-    CACHE_TTL: int = 300  # 5 minutes
+    # Cache
+    CACHE_TTL: int = 300
     ENABLE_CACHING: bool = True
 
-    # Database settings
-    DATABASE_URL: Optional[str] = Field(default=None)
-    DATABASE_ECHO: bool = Field(default=False)
-    DATABASE_POOL_SIZE: int = Field(default=5)
-    DATABASE_MAX_OVERFLOW: int = Field(default=10)
-    DATABASE_POOL_PRE_PING: bool = Field(default=True)
+    # Database / Redis
+    DATABASE_URL: str | None = None
+    DATABASE_ECHO: bool = False
+    REDIS_URL: str | None = None
 
-    # Redis settings
-    REDIS_URL: Optional[str] = Field(default=None)
-    REDIS_DECODE_RESPONSES: bool = True
-    REDIS_MAX_CONNECTIONS: int = 10
-
-    # AI Service API Keys
-    OPENAI_API_KEY: Optional[str] = Field(default=None, description="OpenAI API key")
-    ANTHROPIC_API_KEY: Optional[str] = Field(default=None, description="Anthropic API key")
-    GOOGLE_API_KEY: Optional[str] = Field(default=None, description="Google AI API key")
-    ENABLE_OPENAI_PROVIDER: bool = True
-    ENABLE_ANTHROPIC_PROVIDER: bool = True
-    ENABLE_GOOGLE_PROVIDER: bool = True
-
-    # Model configuration per expert
-    MATH_EXPERT_MODEL: str = "gpt-4o-mini"
-    CODE_EXPERT_MODEL: str = "claude-3-5-haiku-20241022"
-    GENERAL_EXPERT_MODEL: str = "gpt-4o-mini"
-
-    # Performance settings
+    # Performance
     REQUEST_TIMEOUT: int = 30
-    MAX_CONCURRENT_REQUESTS: int = 10
+    MAX_CONCURRENT_REQUESTS: int = 8
 
-    # Monitoring and observability
+    # Observability
     ENABLE_METRICS: bool = True
     METRICS_PORT: int = 9090
     ENABLE_TRACING: bool = False
@@ -145,65 +123,22 @@ class Settings(BaseSettings):
     SLO_P95_LATENCY_MS_THRESHOLD: int = 750
     SLO_ALERT_WINDOW_MINUTES: int = 5
 
-    # Security settings
-    ENABLE_AUTHENTICATION: bool = False
-    JWT_SECRET_KEY: str = Field(default=DEFAULT_JWT_SECRET_KEY)
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
+    # MLflow (opt-in)
+    MLFLOW_TRACKING_URI: str | None = None
+    MLFLOW_EXPERIMENT_NAME: str = "dspy-sme-expert"
 
-    # Health check settings
-    HEALTH_CHECK_INTERVAL: int = 30
-
-    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @field_validator("ALLOWED_ORIGINS", "ALLOWED_METHODS", "ALLOWED_HEADERS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: Any) -> List[str]:
-        """Parse CORS origins from comma-separated string or list."""
+    def _split_csv(cls, v: Any) -> list[str]:
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        elif isinstance(v, list):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        if isinstance(v, list):
             return v
         return []
 
-    @model_validator(mode="after")
-    def validate_production_security(self) -> "Settings":
-        """Enforce strict security defaults in production."""
-        if not self.is_production:
-            return self
-
-        if self.SECRET_KEY == self.DEFAULT_SECRET_KEY:
-            raise ValueError("SECRET_KEY must be changed from the default in production")
-
-        if self.JWT_SECRET_KEY == self.DEFAULT_JWT_SECRET_KEY:
-            raise ValueError("JWT_SECRET_KEY must be changed from the default in production")
-
-        if not self.ALLOWED_ORIGINS or "*" in self.ALLOWED_ORIGINS:
-            raise ValueError(
-                "ALLOWED_ORIGINS must be explicitly configured in production and cannot include '*'"
-            )
-
-        enabled_provider_keys = {
-            "openai": (self.ENABLE_OPENAI_PROVIDER, self.OPENAI_API_KEY),
-            "anthropic": (self.ENABLE_ANTHROPIC_PROVIDER, self.ANTHROPIC_API_KEY),
-            "google": (self.ENABLE_GOOGLE_PROVIDER, self.GOOGLE_API_KEY),
-        }
-
-        missing_keys = [
-            provider
-            for provider, (enabled, key) in enabled_provider_keys.items()
-            if enabled and not key
-        ]
-
-        if missing_keys:
-            raise ValueError(
-                "Missing API keys for enabled providers in production: " + ", ".join(missing_keys)
-            )
-
-        return self
-
     @field_validator("ENVIRONMENT", mode="before")
     @classmethod
-    def validate_environment(cls, v: Any) -> Environment:
-        """Validate and convert environment value."""
+    def _coerce_env(cls, v: Any) -> Environment:
         if isinstance(v, str):
             try:
                 return Environment(v.lower())
@@ -213,128 +148,57 @@ class Settings(BaseSettings):
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
-    def assemble_db_connection(cls, v: Any) -> Optional[str]:
-        """Build database URL from components if not provided directly."""
+    def _db_default(cls, v: Any) -> str:
         if isinstance(v, str) and v:
             return v
+        return "sqlite:///./dspy_sme.db"
 
-        # Build from environment variables
-        user = os.getenv("DB_USER", "postgres")
-        password = os.getenv("DB_PASSWORD", "postgres")
-        host = os.getenv("DB_HOST", "localhost")
-        port = os.getenv("DB_PORT", "5432")
-        database = os.getenv("DB_NAME", "bitnet_sme")
+    @model_validator(mode="after")
+    def _validate_production(self) -> "Settings":
+        if not self.is_production:
+            return self
+        if self.SECRET_KEY == _DEFAULT_SECRET_KEY:
+            raise ValueError("SECRET_KEY must be changed from the default in production")
+        if self.JWT_SECRET_KEY == _DEFAULT_JWT_SECRET_KEY:
+            raise ValueError("JWT_SECRET_KEY must be changed from the default in production")
+        if not self.ALLOWED_ORIGINS or "*" in self.ALLOWED_ORIGINS:
+            raise ValueError(
+                "ALLOWED_ORIGINS must be an explicit allowlist (no '*') in production"
+            )
+        return self
 
-        if all([user, password, host, port, database]):
-            return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
-
-        # Default to SQLite for development
-        return "sqlite:///./bitnet_sme.db"
-
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def is_production(self) -> bool:
-        """Check if running in production environment."""
         return self.ENVIRONMENT == Environment.PRODUCTION
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def is_development(self) -> bool:
-        """Check if running in development environment."""
         return self.ENVIRONMENT == Environment.DEVELOPMENT
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def is_testing(self) -> bool:
-        """Check if running in testing environment."""
         return self.ENVIRONMENT == Environment.TESTING
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
-    def api_info(self) -> Dict[str, Any]:
-        """Get API metadata for OpenAPI specification."""
+    def api_info(self) -> dict[str, Any]:
         return {
             "title": self.APP_NAME,
             "description": self.DESCRIPTION,
             "version": self.API_VERSION,
-            "contact": {
-                "name": "SUM Equities",
-                "email": "hi@sumequities.com",
-                "url": "https://sumequities.com"
-            },
-            "license_info": {
-                "name": "MIT",
-                "url": "https://opensource.org/licenses/MIT"
-            }
         }
 
-    @computed_field
-    @property
-    def log_config(self) -> Dict[str, Any]:
-        """Get logging configuration dictionary."""
-        if self.LOG_FORMAT == LogFormat.JSON:
-            return {
-                "version": 1,
-                "disable_existing_loggers": False,
-                "formatters": {
-                    "json": {
-                        "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
-                        "class": "pythonjsonlogger.jsonlogger.JsonFormatter"
-                    }
-                },
-                "handlers": {
-                    "console": {
-                        "class": "logging.StreamHandler",
-                        "formatter": "json",
-                        "stream": "ext://sys.stdout"
-                    }
-                },
-                "root": {
-                    "level": self.LOG_LEVEL.value,
-                    "handlers": ["console"]
-                }
-            }
-        else:
-            return {
-                "version": 1,
-                "disable_existing_loggers": False,
-                "formatters": {
-                    "default": {
-                        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-                    }
-                },
-                "handlers": {
-                    "console": {
-                        "class": "logging.StreamHandler",
-                        "formatter": "default",
-                        "stream": "ext://sys.stdout"
-                    }
-                },
-                "root": {
-                    "level": self.LOG_LEVEL.value,
-                    "handlers": ["console"]
-                }
-            }
 
-
-# Create global settings instance
 settings = Settings()
 
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL.value),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s" if not settings.ENABLE_STRUCTURED_LOGGING else None
-)
+# Basic root logging — full structured config lives in observability.configure_logging.
+logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.value), force=False)
+for noisy in ("httpx", "httpcore", "litellm", "urllib3", "asyncio"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
-# Suppress noisy third-party loggers
-noisy_loggers = [
-    "httpx", "httpcore", "openai", "anthropic", "google.generativeai",
-    "asyncio", "urllib3", "requests", "transformers"
-]
-
-for logger_name in noisy_loggers:
-    logging.getLogger(logger_name).setLevel(logging.WARNING)
-
-# Create application logger
-logger = logging.getLogger("bitnet_sme")
-logger.info(f"Settings loaded for {settings.ENVIRONMENT.value} environment")
+# Surface MLflow tracking URI as an env var so DSPy/MLflow pick it up downstream.
+if settings.MLFLOW_TRACKING_URI and "MLFLOW_TRACKING_URI" not in os.environ:
+    os.environ["MLFLOW_TRACKING_URI"] = settings.MLFLOW_TRACKING_URI

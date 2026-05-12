@@ -1,9 +1,4 @@
-"""
-Custom exceptions and error handling for the BitNet SME Expert System.
-
-This module provides comprehensive error handling with proper HTTP status codes,
-structured error responses, and detailed error information for debugging.
-"""
+"""Custom exceptions and HTTP error handlers for dspy-sme-expert."""
 from typing import Any, Dict, Optional, Union
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -49,7 +44,7 @@ class ErrorCode(str, Enum):
     FINE_TUNING_DATA_ERROR = "FINE_TUNING_DATA_ERROR"
 
 
-class BitNetSMEException(Exception):
+class AppException(Exception):
     """Base exception class for BitNet SME Expert System."""
 
     def __init__(
@@ -66,7 +61,7 @@ class BitNetSMEException(Exception):
         self.details = details or {}
 
 
-class ValidationException(BitNetSMEException):
+class ValidationException(AppException):
     """Raised when input validation fails."""
 
     def __init__(
@@ -82,7 +77,7 @@ class ValidationException(BitNetSMEException):
         )
 
 
-class ExpertNotFoundException(BitNetSMEException):
+class ExpertNotFoundException(AppException):
     """Raised when a requested expert is not found."""
 
     def __init__(
@@ -103,7 +98,7 @@ class ExpertNotFoundException(BitNetSMEException):
         )
 
 
-class ExpertInitializationException(BitNetSMEException):
+class ExpertInitializationException(AppException):
     """Raised when expert initialization fails."""
 
     def __init__(
@@ -120,7 +115,7 @@ class ExpertInitializationException(BitNetSMEException):
         )
 
 
-class ExpertGenerationException(BitNetSMEException):
+class ExpertGenerationException(AppException):
     """Raised when expert generation fails."""
 
     def __init__(
@@ -142,7 +137,7 @@ class ExpertGenerationException(BitNetSMEException):
         )
 
 
-class ExpertTimeoutException(BitNetSMEException):
+class ExpertTimeoutException(AppException):
     """Raised when expert operation times out."""
 
     def __init__(
@@ -162,7 +157,7 @@ class ExpertTimeoutException(BitNetSMEException):
         )
 
 
-class ModelException(BitNetSMEException):
+class ModelException(AppException):
     """Base class for model-related exceptions."""
     pass
 
@@ -217,7 +212,7 @@ class ModelAuthenticationException(ModelException):
         )
 
 
-class DatabaseException(BitNetSMEException):
+class DatabaseException(AppException):
     """Raised when database operations fail."""
 
     def __init__(
@@ -233,7 +228,7 @@ class DatabaseException(BitNetSMEException):
         )
 
 
-class CacheException(BitNetSMEException):
+class CacheException(AppException):
     """Raised when cache operations fail."""
 
     def __init__(
@@ -249,7 +244,7 @@ class CacheException(BitNetSMEException):
         )
 
 
-class FineTuningException(BitNetSMEException):
+class FineTuningException(AppException):
     """Raised when fine-tuning operations fail."""
 
     def __init__(
@@ -265,7 +260,7 @@ class FineTuningException(BitNetSMEException):
         )
 
 
-class RateLimitException(BitNetSMEException):
+class RateLimitException(AppException):
     """Raised when rate limits are exceeded."""
 
     def __init__(
@@ -281,9 +276,9 @@ class RateLimitException(BitNetSMEException):
         )
 
 
-async def bitnet_sme_exception_handler(
+async def app_exception_handler(
     request: Request,
-    exc: BitNetSMEException
+    exc: AppException
 ) -> JSONResponse:
     """Handle BitNet SME custom exceptions."""
 

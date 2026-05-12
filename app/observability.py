@@ -6,7 +6,7 @@ import contextvars
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Dict
 
 from prometheus_client import Counter, Histogram
@@ -70,7 +70,7 @@ class JsonLogFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         payload: Dict[str, Any] = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),

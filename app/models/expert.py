@@ -1,204 +1,137 @@
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Type, TypeVar, Generic
-from pydantic import BaseModel, Field, validator
+"""Expert base class and configuration model.
+
+Pydantic v2 throughout. The abstract ``BaseExpert`` lives here so that both the
+DSPy-backed experts (``app/experts/``) and the service layer can depend on it
+without circular imports.
+"""
+
+from __future__ import annotations
+
 import logging
 import time
-from datetime import datetime
 import uuid
+from abc import ABC, abstractmethod
+from datetime import UTC, datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..schemas.base import ExpertDomain
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
 
 class ExpertConfig(BaseModel):
     """Configuration for an expert."""
+
+    model_config = ConfigDict(use_enum_values=True, extra="ignore")
+
     name: str = Field(..., description="Name of the expert")
     description: str = Field(..., description="Description of the expert's capabilities")
     domain: ExpertDomain = Field(..., description="Domain of expertise")
-    version: str = Field("1.0.0", description="Expert version")
-    model_name: str = Field("gpt-3.5-turbo", description="Name of the underlying model")
-    temperature: float = Field(0.7, ge=0.0, le=2.0, description="Sampling temperature")
-    top_p: float = Field(0.9, ge=0.0, le=1.0, description="Nucleus sampling parameter")
-    max_tokens: int = Field(512, ge=1, le=4096, description="Maximum number of tokens to generate")
-    stop_sequences: List[str] = Field(
-        default_factory=list,
-        description="Stop sequences for generation"
-    )
-    is_custom: bool = Field(False, description="Whether this is a custom expert")
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional configuration parameters"
-    )
+    version: str = Field("3.0.0", description="Expert version")
+    model_name: str = Field("dspy-managed", description="Display name for the underlying model")
+    temperature: float = Field(0.7, ge=0.0, le=2.0)
+    top_p: float = Field(0.9, ge=0.0, le=1.0)
+    max_tokens: int = Field(1024, ge=1, le=8192)
+    stop_sequences: list[str] = Field(default_factory=list)
+    is_custom: bool = Field(False)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 class ExpertContext(BaseModel):
-    """Context for expert generation."""
-    session_id: Optional[str] = Field(
-        None,
-        description="Session identifier for multi-turn conversations"
-    )
-    user_id: Optional[str] = Field(
-        None,
-        description="Identifier for the user making the request"
-    )
-    context: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional context for the expert"
-    )
+    """Optional context carried through a request."""
+
+    session_id: str | None = None
+    user_id: str | None = None
+    context: dict[str, Any] = Field(default_factory=dict)
+
 
 class BaseExpert(ABC):
-    """Base class for all expert implementations."""
-    
-    def __init__(self, config: Dict[str, Any] = None):
-        """Initialize the expert with configuration."""
+    """Abstract base. Concrete subclasses live in ``app/experts/``."""
+
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config = ExpertConfig(**(config or {}))
         self.initialized = False
         self.logger = logger.getChild(f"expert.{self.config.domain}.{self.config.name}")
-        self.id = str(uuid.uuid4())
-        
+        self.id: str = str(uuid.uuid4())
+
     @property
     def name(self) -> str:
-        """Get the expert's name."""
         return self.config.name
-        
+
     @property
     def domain(self) -> ExpertDomain:
-        """Get the expert's domain."""
-        return self.config.domain
-        
-    async def initialize(self):
-        """Initialize the expert (lazy loading)."""
-        if not self.initialized:
-            start_time = time.time()
-            self.logger.info(f"Initializing {self.__class__.__name__}")
-            await self._initialize()
-            self.initialized = True
-            self.logger.info(
-                f"Initialized {self.__class__.__name__} "
-                f"in {(time.time() - start_time):.2f}s"
-            )
-            
-    async def _initialize(self):
-        """Subclass-specific initialization."""
-        pass
-        
+        # ``use_enum_values=True`` stores the enum's value, not the enum itself.
+        # Re-wrap so callers can rely on ``expert.domain.value``.
+        value = self.config.domain
+        return value if isinstance(value, ExpertDomain) else ExpertDomain(value)
+
+    async def initialize(self) -> None:
+        if self.initialized:
+            return
+        start = time.perf_counter()
+        self.logger.info("expert.init.started", extra={"expert": self.config.name})
+        await self._initialize()
+        self.initialized = True
+        self.logger.info(
+            "expert.init.completed",
+            extra={"expert": self.config.name, "elapsed_s": time.perf_counter() - start},
+        )
+
+    async def _initialize(self) -> None:  # pragma: no cover - default no-op
+        return None
+
     async def generate(
         self,
         input_text: str,
-        context: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """
-        Generate a response to the input text.
-        
-        Args:
-            input_text: The input text to respond to
-            context: Additional context for the expert
-            **kwargs: Additional generation parameters
-            
-        Returns:
-            Dictionary containing the expert's response and metadata
-        """
-        start_time = time.time()
-        
+        context: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        if not self.initialized:
+            await self.initialize()
+        start = time.perf_counter()
         try:
-            if not self.initialized:
-                await self.initialize()
-                
-            # Update config with any overrides
-            config = self.config.dict()
-            config.update(kwargs)
-            
-            self.logger.debug(f"Generating response for input: {input_text[:200]}...")
-            
-            # Call the implementation
-            response = await self._generate_impl(input_text, context or {}, **config)
-            
-            # Ensure response has required fields
-            if not isinstance(response, dict):
-                response = {"response": str(response)}
-                
-            # Add metadata if not present
-            if "metadata" not in response:
-                response["metadata"] = {}
-                
-            # Add timing information
-            processing_time = time.time() - start_time
-            response["metadata"].update({
-                "processing_time": processing_time,
-                "model": self.config.model_name,
-                "expert_id": self.id,
-                "expert_name": self.config.name,
-                "expert_domain": self.config.domain,
-                "timestamp": datetime.utcnow().isoformat()
-            })
-            
-            # Add token count if not provided
-            if "tokens_used" not in response["metadata"] and "response" in response:
-                response["metadata"]["tokens_used"] = len(str(response["response"]).split())
-                
-            self.logger.debug(
-                f"Generated response in {processing_time:.2f}s: "
-                f"{response.get('response', '')[:200]}..."
-            )
-            
-            return response
-            
-        except Exception as e:
-            self.logger.error(
-                f"Error in {self.__class__.__name__}.generate: {str(e)}",
-                exc_info=True
-            )
+            response = await self._generate_impl(input_text, context or {}, **kwargs)
+        except Exception:
+            self.logger.exception("expert.generate.failed", extra={"expert": self.config.name})
             raise
-            
+        if not isinstance(response, dict):
+            response = {"response": str(response)}
+        meta = response.setdefault("metadata", {})
+        meta.setdefault("expert_id", self.id)
+        meta.setdefault("expert_name", self.config.name)
+        meta.setdefault("expert_domain", self.domain.value)
+        meta.setdefault("timestamp", datetime.now(UTC).isoformat())
+        meta.setdefault("processing_time", time.perf_counter() - start)
+        return response
+
     @abstractmethod
     async def _generate_impl(
-        self,
-        input_text: str,
-        context: Dict[str, Any],
-        **kwargs
-    ) -> Dict[str, Any]:
-        """
-        Subclass-specific implementation of generation.
-        
-        Args:
-            input_text: The input text to respond to
-            context: Additional context for the expert
-            **kwargs: Additional generation parameters
-            
-        Returns:
-            Dictionary containing the expert's response and metadata
-        """
-        pass
-        
-    async def cleanup(self):
-        """Clean up any resources used by the expert."""
-        if self.initialized:
-            try:
-                await self._cleanup()
-                self.initialized = False
-                self.logger.info(f"Cleaned up {self.__class__.__name__}")
-            except Exception as e:
-                self.logger.error(
-                    f"Error cleaning up {self.__class__.__name__}: {str(e)}",
-                    exc_info=True
-                )
-                
-    async def _cleanup(self):
-        """Subclass-specific cleanup."""
-        pass
-        
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert the expert to a dictionary."""
+        self, input_text: str, context: dict[str, Any], **kwargs: Any
+    ) -> dict[str, Any]:
+        ...
+
+    async def cleanup(self) -> None:
+        if not self.initialized:
+            return
+        try:
+            await self._cleanup()
+        finally:
+            self.initialized = False
+
+    async def _cleanup(self) -> None:  # pragma: no cover - default no-op
+        return None
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.config.name,
             "description": self.config.description,
-            "domain": self.config.domain,
+            "domain": self.domain.value,
             "version": self.config.version,
             "model": self.config.model_name,
             "is_custom": self.config.is_custom,
             "initialized": self.initialized,
-            "metadata": self.config.metadata
+            "metadata": self.config.metadata,
         }

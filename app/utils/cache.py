@@ -1,7 +1,7 @@
 """Simple in-memory cache implementation."""
 import time
 from typing import Any, Dict, Optional
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import hashlib
 import json
 import logging
@@ -36,7 +36,7 @@ class SimpleCache:
             return None
             
         entry = self._cache[key]
-        if datetime.now() > entry["expires_at"]:
+        if datetime.now(UTC) > entry["expires_at"]:
             del self._cache[key]
             return None
             
@@ -57,13 +57,13 @@ class SimpleCache:
         ttl = ttl or self.ttl
         self._cache[key] = {
             "value": value,
-            "expires_at": datetime.now() + timedelta(seconds=ttl),
-            "created_at": datetime.now(),
+            "expires_at": datetime.now(UTC) + timedelta(seconds=ttl),
+            "created_at": datetime.now(UTC),
         }
     
     def _evict_expired(self) -> None:
         """Remove all expired entries from the cache."""
-        now = datetime.now()
+        now = datetime.now(UTC)
         expired_keys = [k for k, v in self._cache.items() if v["expires_at"] < now]
         for key in expired_keys:
             del self._cache[key]
@@ -78,7 +78,7 @@ class SimpleCache:
     
     def stats(self) -> dict:
         """Get cache statistics."""
-        now = datetime.now()
+        now = datetime.now(UTC)
         expired = sum(1 for v in self._cache.values() if v["expires_at"] < now)
         
         return {
