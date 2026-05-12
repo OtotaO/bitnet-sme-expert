@@ -42,13 +42,11 @@ FROM base as production
 
 # Install only production dependencies
 COPY requirements.txt .
-RUN pip install --no-dev -r requirements.txt \
+RUN pip install -r requirements.txt \
     && rm -rf /root/.cache/pip
 
 # Copy application code
 COPY --chown=appuser:appuser app ./app
-COPY --chown=appuser:appuser alembic.ini ./
-COPY --chown=appuser:appuser alembic ./alembic
 
 USER appuser
 
