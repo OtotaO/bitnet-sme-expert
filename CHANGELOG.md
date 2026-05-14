@@ -7,6 +7,20 @@ this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Agentic Hybrid RAG for the GeneralExpert** (opt-in, behind `RAG_ENABLED=1`).
+  When the env var is set, `GeneralProgram` switches from `dspy.ChainOfThought`
+  to `dspy.ReAct` with a `retrieve(query)` tool backed by
+  `LanceDBRetriever`. Stack:
+    - **LanceDB** as the embedded vector + FTS store. Native hybrid search
+      (dense ANN + BM25) with built-in RRF fusion, first-class multivector
+      support for the ColBERT upgrade path.
+    - **BGE-M3** as the embedder.
+    - **BGE-Reranker-v2-m3** as the cross-encoder rerank stage.
+  Pulled via the new `[rag]` optional extra. See `docs/rag.md` for the full
+  recipe, env knobs, and the LanceDB-vs-DuckDB tradeoff table.
+- **`scripts/build_rag_index.py`** — ingest a directory of `.md`/`.txt`/`.rst`
+  files into the LanceDB store with paragraph-based chunking and BGE-M3
+  embeddings.
 - **Eval-on-demand CI workflow** (`.github/workflows/eval.yml`). Triggered via
   `gh workflow run eval.yml --field domain=<math|code|general|all> --field lm=<...>`,
   it runs `dspy.Evaluate` against the gold JSONL datasets, uploads

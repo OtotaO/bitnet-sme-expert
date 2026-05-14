@@ -214,3 +214,7 @@ compiled/
 
 # bitnet.cpp local cache (when developing on host)
 ~/.cache/bitnet.cpp/
+
+# RAG: ship the source corpus, but never check in the binary LanceDB index.
+# The index is reproducible from rag/corpus/ via `make rag-index`.
+rag/index/
