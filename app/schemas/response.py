@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -15,6 +15,7 @@ def _now() -> datetime:
 
 class ExpertResponse(BaseModel):
     """Response model for a single expert's output."""
+
     expert_id: str = Field(..., description="Unique identifier for the expert")
     expert_name: str = Field(..., description="Human-readable name of the expert")
     domain: ExpertDomain = Field(..., description="Domain of expertise")
@@ -30,6 +31,7 @@ class ExpertResponse(BaseModel):
 
 class QueryResponse(BaseResponse[ExpertResponse]):
     """Response model for a query to a single expert."""
+
     query_id: str = Field(..., description="Unique identifier for the query")
     session_id: str | None = None
     data: ExpertResponse = Field(..., description="The expert's response")
@@ -37,13 +39,16 @@ class QueryResponse(BaseResponse[ExpertResponse]):
 
 class CollaborateResponse(BaseResponse[dict[str, ExpertResponse]]):
     """Response model for collaboration between multiple experts."""
+
     query_id: str = Field(..., description="Unique identifier for the query")
     session_id: str | None = None
     data: dict[str, ExpertResponse] = Field(..., description="Mapping of expert ids to responses")
     summary: str | None = None
 
-class TrainingStatus(str, Enum):
+
+class TrainingStatus(StrEnum):
     """Status of a training job."""
+
     PENDING = "pending"
     PREPROCESSING = "preprocessing"
     TRAINING = "training"
@@ -52,8 +57,10 @@ class TrainingStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+
 class TrainingMetrics(BaseModel):
     """Metrics from model training."""
+
     epoch: int
     loss: float
     learning_rate: float
@@ -69,6 +76,7 @@ class TrainingMetrics(BaseModel):
 
 class TrainingJobResponse(BaseResponse[dict[str, Any]]):
     """Response model for a training job."""
+
     job_id: str
     name: str
     status: TrainingStatus
@@ -83,6 +91,7 @@ class TrainingJobResponse(BaseResponse[dict[str, Any]]):
 
 class ExpertInfo(BaseModel):
     """Information about an available expert."""
+
     id: str
     name: str
     domain: ExpertDomain
@@ -97,5 +106,6 @@ class ExpertInfo(BaseModel):
 
 class ListExpertsResponse(BaseResponse[list[ExpertInfo]]):
     """Response model for listing available experts."""
+
     count: int
     data: list[ExpertInfo]

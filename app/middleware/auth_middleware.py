@@ -6,7 +6,8 @@ CVEs and is effectively abandoned).
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
+from typing import ClassVar
 
 import jwt
 from fastapi import Request
@@ -20,7 +21,7 @@ from ..config import settings
 class AuthzMiddleware(BaseHTTPMiddleware):
     """Enforce role-based access controls on sensitive routes."""
 
-    PROTECTED_ROUTES: dict[str, frozenset[str]] = {
+    PROTECTED_ROUTES: ClassVar[dict[str, frozenset[str]]] = {
         "/cache/clear": frozenset({"admin"}),
         "/api/v1/train": frozenset({"admin"}),
         "/api/v1/fine-tune": frozenset({"admin"}),
@@ -54,9 +55,7 @@ class AuthzMiddleware(BaseHTTPMiddleware):
                 algorithms=[settings.JWT_ALGORITHM],
             )
         except jwt.PyJWTError:
-            return JSONResponse(
-                status_code=401, content={"detail": "Invalid authentication token"}
-            )
+            return JSONResponse(status_code=401, content={"detail": "Invalid authentication token"})
 
         if not self._has_required_role(payload, required):
             return JSONResponse(

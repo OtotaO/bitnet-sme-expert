@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -13,7 +13,7 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-class TrainingStatus(str, Enum):
+class TrainingStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -60,5 +60,5 @@ class TrainingJobResponse(BaseModel):
     end_time: datetime | None = None
 
     @classmethod
-    def from_job(cls, job: TrainingJob) -> "TrainingJobResponse":
+    def from_job(cls, job: TrainingJob) -> TrainingJobResponse:
         return cls.model_validate(job, from_attributes=True)

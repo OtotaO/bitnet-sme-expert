@@ -10,21 +10,21 @@ from __future__ import annotations
 
 import logging
 import os
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Environment(str, Enum):
+class Environment(StrEnum):
     DEVELOPMENT = "development"
     TESTING = "testing"
     STAGING = "staging"
     PRODUCTION = "production"
 
 
-class LogLevel(str, Enum):
+class LogLevel(StrEnum):
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -32,7 +32,7 @@ class LogLevel(str, Enum):
     CRITICAL = "CRITICAL"
 
 
-class LogFormat(str, Enum):
+class LogFormat(StrEnum):
     SIMPLE = "simple"
     JSON = "json"
     DETAILED = "detailed"
@@ -154,7 +154,7 @@ class Settings(BaseSettings):
         return "sqlite:///./dspy_sme.db"
 
     @model_validator(mode="after")
-    def _validate_production(self) -> "Settings":
+    def _validate_production(self) -> Settings:
         if not self.is_production:
             return self
         if self.SECRET_KEY == _DEFAULT_SECRET_KEY:
@@ -162,9 +162,7 @@ class Settings(BaseSettings):
         if self.JWT_SECRET_KEY == _DEFAULT_JWT_SECRET_KEY:
             raise ValueError("JWT_SECRET_KEY must be changed from the default in production")
         if not self.ALLOWED_ORIGINS or "*" in self.ALLOWED_ORIGINS:
-            raise ValueError(
-                "ALLOWED_ORIGINS must be an explicit allowlist (no '*') in production"
-            )
+            raise ValueError("ALLOWED_ORIGINS must be an explicit allowlist (no '*') in production")
         return self
 
     @computed_field  # type: ignore[misc]

@@ -6,12 +6,9 @@ tools when sandboxing is wired in.
 
 from __future__ import annotations
 
-import re
-
 import dspy
 
 from .signatures import GenerateCode
-
 
 _LANG_HINTS = {
     "python": ("python", "py ", "pandas", "numpy", "fastapi", "django", "flask"),

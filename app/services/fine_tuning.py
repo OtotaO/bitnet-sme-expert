@@ -65,8 +65,13 @@ class TrainingConfig:
     lora_dropout: float = 0.0
     lora_target_modules: list[str] = field(
         default_factory=lambda: [
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
         ]
     )
 
@@ -167,7 +172,9 @@ class FineTuningService:
             return ds
         if {"instruction", "response"}.issubset(cols):
             return ds.map(
-                lambda ex: {"text": f"### Instruction:\n{ex['instruction']}\n\n### Response:\n{ex['response']}"},
+                lambda ex: {
+                    "text": f"### Instruction:\n{ex['instruction']}\n\n### Response:\n{ex['response']}"
+                },
                 remove_columns=[c for c in cols if c != "text"],
             )
         raise ValueError(f"Don't know how to format dataset with columns {cols}")
@@ -231,12 +238,14 @@ class FineTuningService:
         )
 
     @classmethod
-    def from_pretrained(cls, model_path: str) -> "FineTuningService":
+    def from_pretrained(cls, model_path: str) -> FineTuningService:
         from unsloth import FastLanguageModel
 
         cfg_path = Path(model_path) / "training_config.json"
         cfg_data = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
-        cfg = TrainingConfig(**{k: v for k, v in cfg_data.items() if k in TrainingConfig.__dataclass_fields__})
+        cfg = TrainingConfig(
+            **{k: v for k, v in cfg_data.items() if k in TrainingConfig.__dataclass_fields__}
+        )
         cfg.output_dir = model_path
         instance = cls(cfg)
         instance.model, instance.tokenizer = FastLanguageModel.from_pretrained(

@@ -30,8 +30,14 @@ def stub_responses() -> dict[str, object]:
 def stub_lm(stub_responses: dict[str, object]) -> Generator[dspy.LM, None, None]:
     """Install a DummyLM as the global DSPy LM for the duration of the test."""
     answers: Iterable = stub_responses.get("answers") or [
-        {"reasoning": "stub", "answer": "stub-answer", "explanation": "stub", "code": "pass",
-         "domain": "general", "confidence": 0.9}
+        {
+            "reasoning": "stub",
+            "answer": "stub-answer",
+            "explanation": "stub",
+            "code": "pass",
+            "domain": "general",
+            "confidence": 0.9,
+        }
     ]
     lm = dspy.utils.DummyLM(answers)
     with dspy.context(lm=lm, async_max_workers=1):

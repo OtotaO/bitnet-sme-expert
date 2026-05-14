@@ -20,9 +20,7 @@ class CodeExpert(DSPyExpert):
     def _build_program(self) -> dspy.Module:
         return CodeProgram()
 
-    async def _invoke(
-        self, input_text: str, context: dict[str, Any], **_: Any
-    ) -> dspy.Prediction:
+    async def _invoke(self, input_text: str, context: dict[str, Any], **_: Any) -> dspy.Prediction:
         assert self.program is not None
         language = (context or {}).get("language")
         return await self.program(request=input_text, language=language)

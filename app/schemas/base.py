@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any, Generic, TypeVar
+from enum import StrEnum
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 
 
-class ExpertDomain(str, Enum):
+class ExpertDomain(StrEnum):
     """Supported expert domains."""
 
     MATH = "math"
@@ -21,7 +21,7 @@ class ExpertDomain(str, Enum):
     LEGAL = "legal"
 
 
-class BaseResponse(BaseModel, Generic[T]):
+class BaseResponse[T](BaseModel):
     """Standard envelope for API responses."""
 
     model_config = ConfigDict(

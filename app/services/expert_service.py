@@ -67,7 +67,9 @@ class ExpertService:
             "description": f"{domain.value.capitalize()} expert",
             "domain": domain,
         }
-        self.logger.info("expert.registered", extra={"class": expert_class.__name__, "domain": domain.value})
+        self.logger.info(
+            "expert.registered", extra={"class": expert_class.__name__, "domain": domain.value}
+        )
 
     async def create_expert(
         self,
@@ -104,9 +106,7 @@ class ExpertService:
             if isinstance(domain, str):
                 domain = ExpertDomain(domain.lower())
             if expert.domain != domain:
-                raise ValueError(
-                    f"Expert {expert_id} is {expert.domain.value}, not {domain.value}"
-                )
+                raise ValueError(f"Expert {expert_id} is {expert.domain.value}, not {domain.value}")
         return expert
 
     async def get_experts_by_domain(
@@ -203,7 +203,7 @@ class ExpertService:
                 resp["success"] = True
                 record_domain_outcome(expert.domain.value, success=True)
                 return resp
-            except Exception as exc:  # noqa: BLE001 - collaborate isolates failures
+            except Exception as exc:
                 record_domain_outcome(expert.domain.value, success=False)
                 self.logger.exception(
                     "collaborate.expert_failed",
@@ -225,9 +225,7 @@ class ExpertService:
 
     async def cleanup(self) -> None:
         self.logger.info("ExpertService.cleanup")
-        await asyncio.gather(
-            *[e.cleanup() for e in self._experts.values()], return_exceptions=True
-        )
+        await asyncio.gather(*[e.cleanup() for e in self._experts.values()], return_exceptions=True)
         self._experts.clear()
         self._router = None
         self._initialized = False
