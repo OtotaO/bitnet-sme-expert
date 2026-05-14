@@ -1,15 +1,41 @@
-# Specialization strategy: BitNet + DSPy for domain SMEs
+# Specialization strategy: DSPy SMEs over any base
 
 ## The vision
 
-Take a model whose weights are already at the compression floor — a 1.58-bit
-ternary model like BitNet b1.58 — and turn it into a *subject-matter expert*
-that beats much larger general-purpose models in a narrow domain. The weights
-don't shrink further; everything else (the program that wraps them, the
-demonstrations they learn from, the tools they call) does the work.
+Build a *subject-matter expert* that beats much larger general-purpose models
+on a narrow domain. The weights are whatever you can afford to host; the
+specialization — the program that wraps them, the demonstrations they learn
+from, the tools they call — is what does the work.
 
 This document explains how the pieces in this repo combine to make that real,
 where the approach works, where it doesn't, and a concrete recommended
+deployment.
+
+## Pick your substrate first
+
+Specialization is base-agnostic, but the substrate you pick shifts the
+tradeoffs. The four supported substrates (full comparison in
+[docs/deployment-modal-hf.md](deployment-modal-hf.md)):
+
+| Substrate | Ceiling | Marginal cost | Best for |
+|---|---|---|---|
+| BitNet 1.58-bit (local) | 2B params | $0 | laptop, sovereign, latency-critical |
+| Modal-hosted vLLM | 70B+ (H100:2) | $$ (pay-when-used) | specialized fine-tuned bases |
+| HF Inference Providers | 70B-405B | $$ (per-token) | frontier open weights, zero ops |
+| Frontier APIs (GPT/Claude) | top-tier | $$$ | open-ended, no specialization needed |
+
+The original framing of this project — *"BitNet + DSPy for domain SMEs"* —
+remains valid when the binding constraint is cost / latency / sovereignty.
+For most teams with cloud credits, the realistic deployment is a hybrid:
+specialized small models for the hot paths (Math / Code), frontier models
+for the open-ended ones (General / Router).
+
+The rest of this document covers the three knobs of specialization with
+**BitNet as the running example**. Every knob applies identically to a
+fine-tuned Qwen / Llama / Mistral served on Modal — just swap the base name
+in the env vars. The remaining content explains how the pieces in this repo
+combine to make that real, where the approach works, where it doesn't, and
+a concrete recommended
 deployment.
 
 ## The three knobs

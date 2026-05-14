@@ -2,20 +2,32 @@
 
 **DSPy-powered multi-expert SME system.** A FastAPI service that routes
 questions to domain-specialist `dspy.Module`s (math, code, general), with
-LiteLLM provider routing, MLflow tracing, optional local inference via
-`bitnet.cpp`, and a `dspy.Evaluate` harness driving MIPROv2 / GEPA
-optimization.
+LiteLLM provider routing, MLflow tracing, agentic hybrid RAG, and a
+`dspy.Evaluate` harness driving MIPROv2 / GEPA optimization.
 
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue?logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-green?logo=fastapi)](https://fastapi.tiangolo.com)
 [![DSPy](https://img.shields.io/badge/DSPy-3.2-orange)](https://dspy.ai)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-> Previously branded "BitNet SME Expert v2.0". Renamed in v3.0 because the
-> previous incarnation was a multi-provider FastAPI shell with hardcoded
-> string stubs in place of every expert, and zero DSPy or BitNet code. v3
-> rebuilds the expert layer on DSPy 3.2 and adds `bitnet.cpp` as an
-> _optional_ local provider rather than a marketing centerpiece.
+## Substrate-agnostic by design
+
+The specialization layer (DSPy programs + optional ReAct tools + optional
+RAG + compiled prompts) is the constant. The model running underneath is a
+config flip. Four substrates are first-class and can be mixed per role via
+`DSPY_LM_<ROLE>` env vars:
+
+| Substrate | Best when | Setup |
+|---|---|---|
+| **HF Inference Providers** | Frontier-grade open weights, zero ops | env vars only |
+| **Modal-hosted vLLM** | Specific HF base on a specific GPU, scales to zero | `modal deploy scripts/modal_serve.py` |
+| **BitNet (local)** | Laptop latency, sovereign data, $0 marginal cost | `make bitnet-setup && make bitnet-serve` |
+| **Frontier APIs** | Max capability, no time to specialize | env vars only |
+
+See **[docs/deployment-modal-hf.md](docs/deployment-modal-hf.md)** for the full
+playbook with copy-paste recipes for each. The hybrid sweet spot for most
+teams: Router + General on a frontier API, Math + Code on a fine-tuned
+Modal-hosted base or BitNet.
 
 ---
 
@@ -98,27 +110,48 @@ harness against the compiled programs:
 RUN_EVAL=1 uv run pytest tests/eval -v -s
 ```
 
-## Optional: local inference with `bitnet.cpp`
+## Picking a substrate
 
-`bitnet.cpp` ships an OpenAI-compatible `llama-server` (built during its
-`setup_env.py` cmake step). Wire it up as any other `dspy.LM`:
+The full comparison + copy-paste recipes live in **[docs/deployment-modal-hf.md](docs/deployment-modal-hf.md)**.
+The 30-second version:
+
+**HF Inference Providers** — zero ops, frontier open weights, billed via HF:
 
 ```bash
-# One-time: clone, build, download the b1.58 2B 4T model (~3 GB)
-make bitnet-setup
-
-# Serve it locally on :8080
-make bitnet-serve
-
-# Tell DSPy to use it for the math expert
-export DSPY_LM_MATH="openai/bitnet"
-export DSPY_LM_MATH_API_BASE="http://localhost:8080/v1"
-export DSPY_LM_MATH_API_KEY_ENV="BITNET_DUMMY_KEY"
-export BITNET_DUMMY_KEY="local"
+export HF_TOKEN=hf_...
+export DSPY_LM_GENERAL="huggingface/auto/meta-llama/Llama-3.3-70B-Instruct"
 ```
 
-The 2B-4T BitNet model runs comfortably on CPU at 5-7 tok/s and is useful as
-a cheap fallback for PII-sensitive or offline workloads.
+**Modal-hosted vLLM** — specific HF base on a specific GPU, scales to zero:
+
+```bash
+modal deploy scripts/modal_serve.py    # one shot
+export DSPY_LM_CODE="openai/Qwen/Qwen2.5-Coder-32B-Instruct"
+export DSPY_LM_CODE_API_BASE="https://<workspace>--dspy-sme-vllm-serve.modal.run/v1"
+export DSPY_LM_CODE_API_KEY="$YOUR_MODAL_KEY"
+```
+
+**Modal-hosted fine-tuning** — Unsloth + TRL on H100, adapter pushed to HF Hub:
+
+```bash
+modal run scripts/modal_finetune.py::train \
+    --base-model meta-llama/Llama-3.3-70B-Instruct \
+    --dataset-repo your-org/your-domain-sft \
+    --output-repo your-org/llama-3.3-70b-domain-lora
+```
+
+**BitNet (local)** — laptop latency, sovereign, $0 marginal cost:
+
+```bash
+make bitnet-setup && make bitnet-serve
+export DSPY_LM_MATH="openai/bitnet-b1.58-2B-4T"
+export DSPY_LM_MATH_API_BASE="http://localhost:8080/v1"
+export DSPY_LM_MATH_API_KEY="local"
+```
+
+The 2B BitNet model runs on CPU at 5-7 tok/s — useful for laptop dev, sovereign
+deployments, or PII-sensitive workloads. The capability ceiling is the 2B
+envelope; pick BitNet when the ceiling isn't the binding constraint.
 
 ## Observability
 

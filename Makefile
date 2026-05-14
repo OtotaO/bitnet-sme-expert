@@ -1,5 +1,5 @@
 # dspy-sme-expert — Makefile (uv-based)
-.PHONY: help install dev test test-eval lint format check build run optimize-math optimize-code optimize-general bitnet-setup bitnet-serve rag-install rag-index rag-up rag-clean clean
+.PHONY: help install dev test test-eval lint format check build run optimize-math optimize-code optimize-general bitnet-setup bitnet-serve rag-install rag-index rag-up rag-clean modal-deploy modal-serve modal-finetune clean
 
 help: ## Show this help message
 	@echo "dspy-sme-expert — Development Commands"
@@ -72,6 +72,19 @@ rag-up: rag-install rag-index ## Install [rag] + build the default index in one 
 
 rag-clean: ## Drop the local RAG index (forces a rebuild on next run)
 	rm -rf rag/index
+
+# Modal (hosted vLLM + fine-tuning) ----------------------------------------
+modal-serve: ## Run an ephemeral vLLM endpoint on Modal (Ctrl-C to stop)
+	uv run modal serve scripts/modal_serve.py
+
+modal-deploy: ## Deploy a persistent vLLM endpoint on Modal
+	uv run modal deploy scripts/modal_serve.py
+
+modal-finetune: ## Fine-tune a HF base on Modal (override BASE/DATASET/OUTPUT)
+	uv run modal run scripts/modal_finetune.py::train \
+		--base-model "$(or $(BASE),unsloth/llama-3.1-8b-bnb-4bit)" \
+		--dataset-repo "$(DATASET)" \
+		--output-repo "$(OUTPUT)"
 
 clean: ## Remove caches and build artifacts
 	rm -rf .pytest_cache .ruff_cache .mypy_cache htmlcov dist build *.egg-info
