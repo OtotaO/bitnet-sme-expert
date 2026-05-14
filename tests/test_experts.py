@@ -107,3 +107,50 @@ def test_python_exec_returns_error_string_on_failure() -> None:
 
     out = _python_exec("raise ValueError('boom')")
     assert out.startswith("[execution error]") or "ValueError" in out
+
+
+def test_expert_output_accepts_minimal_payload() -> None:
+    """Only ``response`` is required; everything else has a sensible default."""
+    from app.schemas.response import ExpertOutput
+
+    out = ExpertOutput.model_validate({"response": "hello"})
+    assert out.response == "hello"
+    assert out.confidence == 1.0
+    assert out.tokens_used == 0
+    assert out.sources == []
+    assert out.metadata == {}
+
+
+def test_expert_output_rejects_invalid_confidence() -> None:
+    """Confidence is clamped to [0.0, 1.0]; validation must reject out-of-range."""
+    import pytest as _pytest
+    from pydantic import ValidationError
+
+    from app.schemas.response import ExpertOutput
+
+    with _pytest.raises(ValidationError):
+        ExpertOutput.model_validate({"response": "x", "confidence": 1.5})
+    with _pytest.raises(ValidationError):
+        ExpertOutput.model_validate({"response": "x", "confidence": -0.1})
+
+
+def test_typed_ops_response_models_construct() -> None:
+    """The new ops-endpoint response models should construct without args
+    where they have defaults, and round-trip a JSON dump cleanly."""
+    from app.schemas.response import (
+        CacheClearResponse,
+        CacheStatsResponse,
+        HealthCheckResponse,
+        LivenessResponse,
+        ReadinessResponse,
+        RootInfoResponse,
+    )
+
+    RootInfoResponse(name="x", version="1.0", environment="dev").model_dump_json()
+    HealthCheckResponse(version="1.0").model_dump_json()
+    LivenessResponse(service="x").model_dump_json()
+    ReadinessResponse(status="ok").model_dump_json()
+    CacheClearResponse().model_dump_json()
+    CacheStatsResponse(
+        total_entries=0, expired_entries=0, max_size=1000, ttl_seconds=300
+    ).model_dump_json()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,22 @@ from .base import BaseResponse, ExpertDomain
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+class ExpertOutput(BaseModel):
+    """Canonical envelope every ``DSPyExpert`` must produce.
+
+    Enforced at the ``DSPyExpert._generate_impl`` boundary so downstream API
+    contracts (``ExpertResponse``, ``QueryResponse``) have a stable shape
+    regardless of which expert ran. Experts may add domain-specific keys to
+    ``metadata`` freely.
+    """
+
+    response: str = Field(..., description="The expert's textual answer")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    tokens_used: int = Field(default=0, ge=0)
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ExpertResponse(BaseModel):
@@ -109,3 +125,60 @@ class ListExpertsResponse(BaseResponse[list[ExpertInfo]]):
 
     count: int
     data: list[ExpertInfo]
+
+
+# ---------------------------------------------------------------------------
+# Ops endpoints — health, readiness, cache
+# ---------------------------------------------------------------------------
+
+
+class RootInfoResponse(BaseModel):
+    """Payload returned by ``GET /``."""
+
+    name: str
+    version: str
+    environment: str
+    docs: str | None = None
+
+
+class HealthCheckResponse(BaseModel):
+    """Payload returned by ``GET /health``."""
+
+    status: Literal["ok"] = "ok"
+    timestamp: datetime = Field(default_factory=_now)
+    version: str
+
+
+class LivenessResponse(BaseModel):
+    """Payload returned by ``GET /health/live`` (k8s livenessProbe)."""
+
+    status: Literal["ok"] = "ok"
+    service: str
+
+
+class ReadinessResponse(BaseModel):
+    """Payload returned by ``GET /health/ready`` (k8s readinessProbe).
+
+    ``checks`` is intentionally permissive because each dependency may surface
+    its own structured detail (e.g. redis ping latency, db pool stats).
+    """
+
+    status: Literal["ok", "degraded"]
+    timestamp: datetime = Field(default_factory=_now)
+    checks: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
+class CacheClearResponse(BaseModel):
+    """Payload returned by ``POST /cache/clear``."""
+
+    status: Literal["ok"] = "ok"
+    timestamp: datetime = Field(default_factory=_now)
+
+
+class CacheStatsResponse(BaseModel):
+    """Payload returned by ``GET /cache/stats``."""
+
+    total_entries: int = Field(ge=0)
+    expired_entries: int = Field(ge=0)
+    max_size: int = Field(ge=0)
+    ttl_seconds: int = Field(ge=0)
