@@ -20,6 +20,7 @@ import dspy
 from ..llm import get_lm
 from ..models.expert import BaseExpert as AbstractExpert
 from ..schemas.base import ExpertDomain
+from ..schemas.response import ExpertOutput
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +79,9 @@ class DSPyExpert(AbstractExpert):
             prediction = await self._invoke(input_text, context, **kwargs)
         elapsed = time.perf_counter() - start
 
-        response = self._format_prediction(prediction)
-        response.setdefault("sources", [])
-        meta = response.setdefault("metadata", {})
+        raw = self._format_prediction(prediction)
+        raw.setdefault("sources", [])
+        meta = raw.setdefault("metadata", {})
         meta.update(
             {
                 "expert": self.config.name,
@@ -90,7 +91,9 @@ class DSPyExpert(AbstractExpert):
                 "timestamp": datetime.now(UTC).isoformat(),
             }
         )
-        return response
+        # Validate against the canonical envelope so contract violations from a
+        # subclass's _format_prediction surface here, not at the API boundary.
+        return ExpertOutput.model_validate(raw).model_dump()
 
     async def _invoke(self, input_text: str, _context: dict[str, Any], **_: Any) -> dspy.Prediction:
         """Default invocation passes ``question=input_text``. Override if needed."""

@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 from typing import Any
 
 from dotenv import load_dotenv
@@ -27,6 +26,14 @@ from app.database import Base, engine, init_db
 from app.llm import configure_dspy
 from app.middleware import AuthzMiddleware, LoggingMiddleware, setup_cors, setup_error_handling
 from app.observability import configure_logging
+from app.schemas.response import (
+    CacheClearResponse,
+    CacheStatsResponse,
+    HealthCheckResponse,
+    LivenessResponse,
+    ReadinessResponse,
+    RootInfoResponse,
+)
 from app.services.expert_service import ExpertService
 
 load_dotenv()
@@ -160,32 +167,28 @@ def _check_experts() -> dict[str, Any]:
     return {"status": "ok", "count": len(expert_service._experts)}
 
 
-@app.get("/", include_in_schema=False)
-async def root() -> dict[str, Any]:
-    return {
-        "name": settings.APP_NAME,
-        "version": settings.API_VERSION,
-        "environment": settings.ENVIRONMENT.value,
-        "docs": settings.DOCS_URL,
-    }
+@app.get("/", include_in_schema=False, response_model=RootInfoResponse)
+async def root() -> RootInfoResponse:
+    return RootInfoResponse(
+        name=settings.APP_NAME,
+        version=settings.API_VERSION,
+        environment=settings.ENVIRONMENT.value,
+        docs=settings.DOCS_URL,
+    )
 
 
-@app.get("/health")
+@app.get("/health", response_model=HealthCheckResponse)
 @limiter.limit("60/minute")
-async def health(request: Request) -> dict[str, Any]:
-    return {
-        "status": "ok",
-        "timestamp": datetime.now(UTC).isoformat(),
-        "version": settings.API_VERSION,
-    }
+async def health(request: Request) -> HealthCheckResponse:
+    return HealthCheckResponse(version=settings.API_VERSION)
 
 
-@app.get("/health/live")
-async def liveness() -> dict[str, Any]:
-    return {"status": "ok", "service": settings.APP_NAME}
+@app.get("/health/live", response_model=LivenessResponse)
+async def liveness() -> LivenessResponse:
+    return LivenessResponse(service=settings.APP_NAME)
 
 
-@app.get("/health/ready")
+@app.get("/health/ready", response_model=ReadinessResponse)
 async def readiness() -> JSONResponse:
     checks: dict[str, Any] = {}
     failures: dict[str, str] = {}
@@ -202,13 +205,12 @@ async def readiness() -> JSONResponse:
             failures[name] = str(exc)
             checks[name] = {"status": "error", "error": str(exc)}
 
-    body = {
-        "status": "ok" if not failures else "degraded",
-        "timestamp": datetime.now(UTC).isoformat(),
-        "checks": checks,
-    }
+    body = ReadinessResponse(
+        status="ok" if not failures else "degraded",
+        checks=checks,
+    )
     code = status.HTTP_200_OK if not failures else status.HTTP_503_SERVICE_UNAVAILABLE
-    return JSONResponse(content=body, status_code=code)
+    return JSONResponse(content=body.model_dump(mode="json"), status_code=code)
 
 
 @app.get("/metrics", include_in_schema=False)
@@ -216,20 +218,20 @@ async def metrics() -> PlainTextResponse:
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-@app.post("/cache/clear")
+@app.post("/cache/clear", response_model=CacheClearResponse)
 @limiter.limit("5/minute")
-async def cache_clear(request: Request) -> dict[str, Any]:
+async def cache_clear(request: Request) -> CacheClearResponse:
     from app.utils.cache import cache
 
     cache.clear()
-    return {"status": "ok", "timestamp": datetime.now(UTC).isoformat()}
+    return CacheClearResponse()
 
 
-@app.get("/cache/stats")
-async def cache_stats() -> dict[str, Any]:
+@app.get("/cache/stats", response_model=CacheStatsResponse)
+async def cache_stats() -> CacheStatsResponse:
     from app.utils.cache import cache
 
-    return cache.stats()
+    return CacheStatsResponse(**cache.stats())
 
 
 if __name__ == "__main__":
