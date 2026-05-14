@@ -56,7 +56,12 @@ def _chunk(text: str, target_chars: int) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-dir", type=Path, required=True)
+    parser.add_argument(
+        "--source-dir",
+        type=Path,
+        default=Path("rag/corpus"),
+        help="Directory to ingest. Defaults to the bundled starter corpus.",
+    )
     parser.add_argument("--index-path", type=Path, default=Path("rag/index"))
     parser.add_argument("--table-name", default="documents")
     parser.add_argument("--chunk-chars", type=int, default=800)

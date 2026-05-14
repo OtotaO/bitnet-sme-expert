@@ -38,21 +38,29 @@ Models, all opt-in via the `[rag]` extra:
 * **[LanceDB](https://lancedb.com)** — embedded vector + FTS store. See
   the LanceDB vs DuckDB section below for the comparison.
 
-## Quickstart
+## Quickstart — one command for a working system
+
+The repo ships with a starter corpus at `rag/corpus/` so a fresh checkout
+gets you a queryable GeneralExpert in one Make target:
 
 ```bash
-# Install the extra (pulls lancedb + FlagEmbedding + torch + sentence-transformers).
-uv sync --extra rag
+make rag-up
+RAG_ENABLED=1 RAG_INDEX_PATH=rag/index make dev
+```
 
-# Build the index from a docs directory.
-uv run python scripts/build_rag_index.py --source-dir docs --index-path rag/index
+`make rag-up` is `make rag-install` + `make rag-index`. It installs the
+`[rag]` extra (lancedb + FlagEmbedding + torch + sentence-transformers) and
+builds the LanceDB index from the bundled corpus. Once running, the
+GeneralExpert can answer questions about the project itself — DSPy basics,
+the specialization thesis, BitNet, env knobs, the RAG architecture — with
+citations back to the source markdown files.
 
-# Enable in your env.
-export RAG_ENABLED=1
-export RAG_INDEX_PATH=rag/index
+To point at your own corpus instead, replace the files under `rag/corpus/`
+or pass `--source-dir`:
 
-# Start the app — GeneralProgram now uses dspy.ReAct + retrieve tool.
-uv run uvicorn app.main:app --reload
+```bash
+uv run python scripts/build_rag_index.py --source-dir my-docs --index-path my-index
+RAG_ENABLED=1 RAG_INDEX_PATH=my-index make dev
 ```
 
 When RAG is enabled, every `GeneralExpert` response includes the cited
@@ -129,10 +137,27 @@ underlying issue without an outage.
 ## Re-indexing
 
 The ingest script writes a fresh table every time (`drop_table` → `create_table`)
-so re-runs are idempotent. For an incremental update strategy (add new rows
-without rebuilding), see [LanceDB's `table.add()` docs](https://lancedb.com/docs/concepts/data-management/);
+so re-runs are idempotent. `make rag-clean` drops the local index; the next
+`make rag-index` rebuilds it from `rag/corpus/`. For an incremental update
+strategy (add new rows without rebuilding), see [LanceDB's `table.add()` docs](https://lancedb.com/docs/concepts/data-management/);
 left as a follow-up since the ingest is fast enough at hundreds-of-thousands
 of chunks to just rebuild.
+
+## The starter corpus
+
+`rag/corpus/` ships with five markdown files chosen to make the system
+*useful immediately* without any external content:
+
+- `01-project-overview.md` — what dspy-sme-expert is, the three experts.
+- `02-dspy-primer.md` — DSPy concepts used in the codebase.
+- `03-bitnet-and-specialization.md` — BitNet + the three-knobs thesis.
+- `04-rag-architecture.md` — this pipeline.
+- `05-env-knobs.md` — every env var the service reads.
+
+These are real, accurate, project-specific docs — not Lorem Ipsum. After
+`make rag-up`, you can ask the GeneralExpert questions like *"What does
+`CODE_SANDBOX_ENABLED` do?"* or *"Why hybrid retrieval over pure dense?"*
+and get cited answers grounded in this corpus.
 
 ## References
 

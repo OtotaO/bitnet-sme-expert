@@ -194,6 +194,36 @@ def test_build_rag_index_ignores_non_utf8(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_starter_corpus_is_present_and_chunkable() -> None:
+    """The bundled ``rag/corpus/`` should ship with real content the ingest
+    script will accept. Catches accidental deletion of the corpus, and verifies
+    that the default zero-arg ``make rag-index`` invocation has something to
+    work with on a fresh checkout."""
+    import importlib.util
+
+    corpus_dir = os.path.join(os.path.dirname(__file__), "..", "rag", "corpus")
+    assert os.path.isdir(corpus_dir), "rag/corpus/ must be checked into the repo"
+    md_files = [f for f in os.listdir(corpus_dir) if f.endswith(".md")]
+    assert len(md_files) >= 3, f"expected >= 3 starter corpus files, got {md_files}"
+
+    spec = importlib.util.spec_from_file_location(
+        "build_rag_index",
+        os.path.join(os.path.dirname(__file__), "..", "scripts", "build_rag_index.py"),
+    )
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    total_chunks = 0
+    for name in md_files:
+        with open(os.path.join(corpus_dir, name), encoding="utf-8") as f:
+            text = f.read()
+        chunks = mod._chunk(text, target_chars=800)
+        assert chunks, f"{name} produced zero chunks"
+        total_chunks += len(chunks)
+    assert total_chunks >= len(md_files), "every corpus file should yield >= 1 chunk"
+
+
 def test_env_example_documents_rag_knobs() -> None:
     """Operators should be able to grep .env.example for the RAG envs."""
     env_text = os.path.join(os.path.dirname(__file__), "..", ".env.example")
