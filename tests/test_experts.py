@@ -79,3 +79,31 @@ async def test_code_expert_infers_language() -> None:
     assert _infer_language("how do I write a select statement in postgres") == "sql"
     assert _infer_language("explain this rust trait") == "rust"
     assert _infer_language("explain garbage collection") == "python"  # default
+
+
+def test_code_program_default_uses_chain_of_thought(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With no CODE_SANDBOX_ENABLED env var, the program uses ChainOfThought."""
+    monkeypatch.delenv("CODE_SANDBOX_ENABLED", raising=False)
+    from app.dspy_modules.code_module import CodeProgram
+
+    program = CodeProgram()
+    assert program.cot is not None
+    assert program.react is None
+
+
+def test_code_program_sandbox_mode_activates_react(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CODE_SANDBOX_ENABLED=1 wires up the dspy.ReAct predictor."""
+    monkeypatch.setenv("CODE_SANDBOX_ENABLED", "1")
+    from app.dspy_modules.code_module import CodeProgram
+
+    program = CodeProgram()
+    assert program.react is not None
+    assert program.cot is not None
+
+
+def test_python_exec_returns_error_string_on_failure() -> None:
+    """The sandbox tool must surface errors as text — never raise into ReAct."""
+    from app.dspy_modules.code_module import _python_exec
+
+    out = _python_exec("raise ValueError('boom')")
+    assert out.startswith("[execution error]") or "ValueError" in out
