@@ -139,23 +139,33 @@ A worked example for the `MathExpert` lane:
    100-500 examples that reflect the domain you care about (calculus,
    probability, finance math, etc.). Keep questions short, answers checkable.
 
-2. **Establish a baseline.** Run `RUN_EVAL=1 pytest tests/eval/test_eval.py
-   -k math` against the *uncompiled* program with whatever LM you plan to
-   ship. Record the score.
+2. **Establish a baseline.** Trigger the eval workflow against `main` with
+   whatever LM you plan to ship:
+
+   ```bash
+   gh workflow run eval.yml --field domain=math --field lm=openai/gpt-4o-mini
+   ```
+
+   Or locally: `RUN_EVAL=1 pytest tests/eval/test_eval.py -k math`. Record
+   the score from the JSON artifact (`eval-results.json`) the workflow uploads.
 
 3. **Bring up the BitNet server.** `./scripts/bitnet_setup.sh && ./scripts/bitnet_serve.sh`.
-   Point `DSPY_LM_MATH` at it. Re-run the eval — expect a drop.
+   Re-run the workflow with `--field lm=openai/bitnet-b1.58-2B-4T` — expect a drop.
 
 4. **Compile with GEPA.** `DSPY_OPTIMIZER=gepa make optimize-math`. The
-   resulting `compiled/math.json` is auto-loaded next start. Re-run the eval.
-   This is usually where you recover most of the gap.
+   resulting `compiled/math.json` is auto-loaded next start. Open a PR with
+   the compiled artifact and re-run eval with `--field pr_number=<n>` so the
+   score lands as a comment on the PR. This is usually where you recover
+   most of the gap.
 
 5. **(Optional) Fine-tune the base.** If GEPA leaves you short, train a LoRA
    on the same dataset via `app/services/fine_tuning.py`, then quantize to
    1.58-bit using BitDistiller. Repeat steps 3-4 with the new weights.
 
-6. **Lock the eval in CI.** Add the dataset and metric threshold to the CI
-   pipeline so future changes can't silently regress it.
+6. **Lock the eval in CI.** The `eval.yml` workflow can be wired into branch
+   protection (require successful eval before merge) once your gold dataset
+   and thresholds are stable. Until then, run it manually on PRs that touch
+   programs, signatures, or compiled artifacts.
 
 ## What "incompressible" actually means here
 
