@@ -1,0 +1,155 @@
+name: Eval
+
+# Manually-triggered DSPy eval against the gold datasets. Optionally posts the
+# results table back to a PR as a comment, and uploads JSON + stdout as an
+# artifact for downstream consumption.
+#
+# Examples:
+#   gh workflow run eval.yml --field domain=math --field lm=openai/gpt-4o-mini
+#   gh workflow run eval.yml --ref claude/my-branch --field pr_number=12
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "Which gold dataset to evaluate"
+        type: choice
+        required: true
+        default: all
+        options: [all, math, code, general]
+      lm:
+        description: "LiteLLM model string (DSPY_LM_<ROLE>)"
+        type: string
+        required: false
+        default: openai/gpt-4o-mini
+      threshold:
+        description: "Override the per-domain pass threshold (blank = use defaults: math/code=0.6, general=0.7)"
+        type: string
+        required: false
+        default: ""
+      pr_number:
+        description: "Optional PR number to post results to as a comment"
+        type: string
+        required: false
+        default: ""
+
+concurrency:
+  group: eval-${{ github.ref }}-${{ inputs.domain }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write  # required to post the results comment
+
+jobs:
+  eval:
+    name: eval (${{ inputs.domain }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Forward inputs as env vars rather than interpolating directly into
+      # shell commands — prevents injection from a maliciously-crafted input.
+      EVAL_DOMAIN: ${{ inputs.domain }}
+      EVAL_LM: ${{ inputs.lm }}
+      EVAL_THRESHOLD: ${{ inputs.threshold }}
+      EVAL_PR_NUMBER: ${{ inputs.pr_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync deps
+        run: uv sync --all-extras
+
+      - name: Run eval
+        id: eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+          MLFLOW_EXPERIMENT_NAME: dspy-sme-expert-eval
+        run: |
+          set +e
+          THRESHOLD_FLAG=()
+          if [ -n "$EVAL_THRESHOLD" ]; then
+            THRESHOLD_FLAG=(--threshold "$EVAL_THRESHOLD")
+          fi
+          uv run python scripts/run_eval.py \
+            --domain "$EVAL_DOMAIN" \
+            --lm "$EVAL_LM" \
+            --output eval-results.json \
+            "${THRESHOLD_FLAG[@]}" \
+            | tee eval-stdout.txt
+          rc=${PIPESTATUS[0]}
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ inputs.domain }}-${{ github.run_id }}
+          path: |
+            eval-results.json
+            eval-stdout.txt
+          if-no-files-found: warn
+
+      - name: Post results to PR
+        if: always() && inputs.pr_number != ''
+        uses: actions/github-script@v7
+        env:
+          RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const lm = process.env.EVAL_LM || '(unknown)';
+            const runId = process.env.RUN_ID;
+            const prNumber = parseInt(process.env.EVAL_PR_NUMBER, 10);
+            let results = [];
+            try {
+              results = JSON.parse(fs.readFileSync('eval-results.json', 'utf8'));
+            } catch (err) {
+              core.warning(`No eval-results.json found: ${err.message}`);
+              results = [];
+            }
+            const rows = results.map(r => {
+              const mark = r.passed ? ':white_check_mark:' : ':x:';
+              const errSuffix = r.error ? ` (error: \`${r.error}\`)` : '';
+              return `| \`${r.domain}\` | ${r.n} | **${r.score.toFixed(2)}** | ${r.threshold.toFixed(2)} | ${mark}${errSuffix} |`;
+            }).join('\n');
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+            const body = [
+              `### Eval results — \`${lm}\``,
+              '',
+              '| Domain | N | Score | Threshold | Pass |',
+              '|---|---:|---:|---:|:---:|',
+              rows || '| _no results_ | | | | |',
+              '',
+              `<sub>workflow run: [#${runId}](${runUrl})</sub>`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body,
+            });
+
+      - name: Fail on regression
+        if: steps.eval.outputs.exit_code == '1'
+        run: |
+          echo "::error::One or more domains scored below threshold."
+          exit 1
+
+      - name: Fail on setup error
+        if: steps.eval.outputs.exit_code == '2'
+        run: |
+          echo "::error::Eval setup failed (bad domain, missing dataset, or LM error)."
+          exit 2

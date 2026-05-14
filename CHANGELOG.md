@@ -6,6 +6,18 @@ this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Eval-on-demand CI workflow** (`.github/workflows/eval.yml`). Triggered via
+  `gh workflow run eval.yml --field domain=<math|code|general|all> --field lm=<...>`,
+  it runs `dspy.Evaluate` against the gold JSONL datasets, uploads
+  `eval-results.json` + stdout as an artifact, and optionally posts a markdown
+  results table to a PR via `--field pr_number=<n>`. Exit code 0 = all
+  thresholds met, 1 = regression, 2 = setup error.
+- **`scripts/run_eval.py`** — the runner the workflow invokes. Importable so
+  the same metric definitions work in pytest (`tests/eval/test_eval.py`) and
+  in CI without drift. Emits JSON-per-line per domain to stdout, plus a
+  consolidated array via `--output`.
+
 ## [3.0.0] - 2026-05-11
 
 ### Changed (breaking)
