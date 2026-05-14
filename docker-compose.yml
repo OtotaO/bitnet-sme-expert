@@ -1,111 +1,90 @@
-version: '3.8'
-
 services:
-  # Main API service
   api:
     build:
       context: .
       target: development
-    container_name: bitnet-sme-api
+    container_name: dspy-sme-api
     ports:
       - "8000:8000"
     environment:
-      - ENV=development
-      - DATABASE_URL=postgresql://postgres:password@db:5432/bitnet_sme
-      - REDIS_URL=redis://redis:6379/0
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/dspy_sme
+      REDIS_URL: redis://redis:6379/0
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    env_file:
+      - .env
     volumes:
       - .:/app
-      - /app/venv
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
     restart: unless-stopped
-    networks:
-      - bitnet-network
 
-  # PostgreSQL database
   db:
-    image: postgres:15-alpine
-    container_name: bitnet-sme-db
+    image: postgres:17-alpine
+    container_name: dspy-sme-db
     environment:
-      POSTGRES_DB: bitnet_sme
+      POSTGRES_DB: dspy_sme
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    restart: unless-stopped
-    networks:
-      - bitnet-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
-  # Redis cache
   redis:
     image: redis:7-alpine
-    container_name: bitnet-sme-redis
+    container_name: dspy-sme-redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    networks:
-      - bitnet-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
 
-  # Prometheus monitoring
+  # MLflow tracking server (and optional model registry).
+  # DSPy autolog reports traces, optimizer runs, and metrics here.
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.0.0
+    container_name: dspy-sme-mlflow
+    ports:
+      - "5000:5000"
+    command: >
+      mlflow server
+      --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow
+    restart: unless-stopped
+
+  # Prometheus scrapes /metrics on the api service.
   prometheus:
     image: prom/prometheus:latest
-    container_name: bitnet-sme-prometheus
+    container_name: dspy-sme-prometheus
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
-    restart: unless-stopped
-    networks:
-      - bitnet-network
     depends_on:
       - api
-
-  # Grafana dashboard
-  grafana:
-    image: grafana/grafana:latest
-    container_name: bitnet-sme-grafana
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
     restart: unless-stopped
-    networks:
-      - bitnet-network
-    depends_on:
-      - prometheus
 
 volumes:
   postgres_data:
   redis_data:
+  mlflow_data:
   prometheus_data:
-  grafana_data:
-
-networks:
-  bitnet-network:
-    driver: bridge

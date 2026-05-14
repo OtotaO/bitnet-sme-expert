@@ -1,0 +1,20 @@
+{"question": "What is 2 + 2?", "answer": "4"}
+{"question": "Calculate 15 * 24", "answer": "360"}
+{"question": "What is the square root of 144?", "answer": "12"}
+{"question": "Compute 2^10", "answer": "1024"}
+{"question": "What is 100 / 4?", "answer": "25"}
+{"question": "Solve for x: 2x + 5 = 15", "answer": "5"}
+{"question": "Solve for x: 3x - 7 = 11", "answer": "6"}
+{"question": "What is the derivative of x^2?", "answer": "2*x"}
+{"question": "What is the derivative of x^3?", "answer": "3*x**2"}
+{"question": "What is the integral of 2x?", "answer": "x**2"}
+{"question": "Factor x^2 - 4", "answer": "(x - 2)*(x + 2)"}
+{"question": "Simplify (x^2 - 1) / (x - 1)", "answer": "x + 1"}
+{"question": "What is sin(0)?", "answer": "0"}
+{"question": "What is cos(0)?", "answer": "1"}
+{"question": "Calculate 7! (7 factorial)", "answer": "5040"}
+{"question": "What is the sum of the first 10 positive integers?", "answer": "55"}
+{"question": "Solve x^2 - 9 = 0", "answer": "-3, 3"}
+{"question": "What is log(100) base 10?", "answer": "2"}
+{"question": "What is 3 + 4 * 2?", "answer": "11"}
+{"question": "Evaluate (8 + 2) * (5 - 3)", "answer": "20"}

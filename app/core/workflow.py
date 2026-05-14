@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 import asyncio
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import wraps
 from uuid import uuid4
 
@@ -123,7 +123,7 @@ class WorkflowStep:
         result = WorkflowStepResult(
             step_name=self.name,
             status=WorkflowStepStatus.RUNNING,
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(UTC),
             metadata={
                 "retries": 0,
                 "attempts": 0,
@@ -365,7 +365,7 @@ class Workflow:
             context.data.update(initial_data)
             
         context.status = WorkflowStatus.RUNNING
-        context.start_time = datetime.utcnow()
+        context.start_time = datetime.now(UTC)
         
         self.logger.info(f"Starting workflow '{self.name}'")
         
@@ -431,7 +431,7 @@ class Workflow:
             raise WorkflowError(f"Workflow failed: {str(e)}") from e
             
         finally:
-            context.end_time = datetime.utcnow()
+            context.end_time = datetime.now(UTC)
             if context.start_time and context.end_time:
                 context.metadata["duration"] = (
                     context.end_time - context.start_time
