@@ -28,9 +28,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ---------------------------------------------------------------------------
 FROM python:${PYTHON_VERSION}-slim AS production
 
-ENV PATH="/opt/venv/bin:$PATH" \
+# Build-arg gate for the CodeExpert sandbox runtime.
+# Set to 1 to install Deno (required by dspy.PythonInterpreter / Pyodide).
+ARG INSTALL_DENO=0
+
+ENV PATH="/opt/venv/bin:/home/appuser/.deno/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    DENO_INSTALL=/home/appuser/.deno
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
@@ -44,6 +49,9 @@ COPY --chown=appuser:appuser app ./app
 COPY --chown=appuser:appuser pyproject.toml ./
 
 USER appuser
+RUN if [ "$INSTALL_DENO" = "1" ]; then \
+        curl -fsSL https://deno.land/install.sh | sh -s -- -y; \
+    fi
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
