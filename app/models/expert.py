@@ -109,8 +109,7 @@ class BaseExpert(ABC):
     @abstractmethod
     async def _generate_impl(
         self, input_text: str, context: dict[str, Any], **kwargs: Any
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
     async def cleanup(self) -> None:
         if not self.initialized:

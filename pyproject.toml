@@ -121,12 +121,26 @@ ignore = [
   "PLR0913",      # arg count
   "PLR2004",      # magic value
   "E501",         # line length handled by formatter
+  "B008",         # FastAPI Depends() is the idiomatic default
+  "PLC0415",      # lazy imports are intentional throughout (optional deps)
 ]
 unfixable = ["B"]
 
+[tool.ruff.lint.pylint]
+max-statements = 60
+max-branches = 18
+max-returns = 8
+
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "PLR2004"]
-"scripts/**" = ["S603", "S607"]
+# Tests routinely lazy-import to avoid loading heavy DSPy modules eagerly.
+"tests/**" = ["S", "PLR2004", "PLC0415"]
+# Scripts are entry points; subprocess and lazy imports are intentional.
+"scripts/**" = ["S603", "S607", "PLC0415", "E402"]
+# Config holds dev defaults like 0.0.0.0 host / placeholder secrets; bandit
+# warns are noise here, the real secret loading is via environment.
+"app/config.py" = ["S104", "S105", "S106", "S107"]
+# Entry-point CLI uses lazy imports + module-level side effects.
+"app/cli.py" = ["PLC0415"]
 
 [tool.ruff.format]
 quote-style = "double"

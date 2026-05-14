@@ -20,8 +20,8 @@ from .signatures import (
 __all__ = [
     "AnswerGeneralQuestion",
     "CodeProgram",
-    "GenerateCode",
     "GeneralProgram",
+    "GenerateCode",
     "MathProgram",
     "RouteQuestion",
     "RouterProgram",

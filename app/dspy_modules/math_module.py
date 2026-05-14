@@ -21,7 +21,6 @@ import sympy
 
 from .signatures import SolveMathProblem
 
-
 # ---------------------------------------------------------------------------
 # Tools exposed to ReAct. Each is a plain function with a typed signature and
 # a clear docstring — DSPy turns those into tool-call specs for the LM.
@@ -100,7 +99,7 @@ def _try_fast_path(question: str) -> str | None:
     candidate = stripped
     for prefix in ("what is ", "calculate ", "compute ", "evaluate "):
         if candidate.lower().startswith(prefix):
-            candidate = candidate[len(prefix):].strip()
+            candidate = candidate[len(prefix) :].strip()
             break
     if not _ARITHMETIC_ONLY.match(candidate):
         return None

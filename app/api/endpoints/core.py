@@ -168,9 +168,7 @@ async def collaborate(
 
     processing_time = (_now() - start).total_seconds()
     failed = {k: v.get("error") for k, v in raw.items() if not v.get("success")}
-    summary = (
-        f"{len(successful)}/{len(raw)} experts responded in {processing_time:.2f}s"
-    )
+    summary = f"{len(successful)}/{len(raw)} experts responded in {processing_time:.2f}s"
     return CollaborateResponse(
         success=bool(successful),
         message=f"Collaboration completed with {len(successful)} experts",

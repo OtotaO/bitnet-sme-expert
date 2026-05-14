@@ -48,7 +48,9 @@ class DSPyExpert(AbstractExpert):
 
     def _format_prediction(self, prediction: dspy.Prediction) -> dict[str, Any]:
         """Convert a Prediction to ``{response, metadata}``. Override for richer shapes."""
-        return {"response": str(prediction.toDict() if hasattr(prediction, "toDict") else prediction)}
+        return {
+            "response": str(prediction.toDict() if hasattr(prediction, "toDict") else prediction)
+        }
 
     # -- lifecycle -----------------------------------------------------------
 

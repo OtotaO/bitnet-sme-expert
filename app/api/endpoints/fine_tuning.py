@@ -84,7 +84,7 @@ def _run_training_job(job_id: str, request: FineTuningRequest) -> None:
         FineTuningService(cfg).train()
         job.status = TrainingStatus.COMPLETED.value
         job.metrics = {"output_dir": cfg.output_dir, "model_name": request.model_name}
-    except Exception as exc:  # noqa: BLE001 - background task surface
+    except Exception as exc:
         logger.exception("finetune.failed", extra={"job_id": job_id})
         job.status = TrainingStatus.FAILED.value
         job.error = str(exc)

@@ -5,16 +5,12 @@ from __future__ import annotations
 import contextvars
 import json
 import logging
-import time
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any, ClassVar
 
 from prometheus_client import Counter, Histogram
 
-
-_request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "request_id", default="-"
-)
+_request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="-")
 
 
 REQUEST_LATENCY_SECONDS = Histogram(
@@ -45,7 +41,7 @@ DOMAIN_REQUESTS_TOTAL = Counter(
 class JsonLogFormatter(logging.Formatter):
     """Simple JSON formatter for structured logs."""
 
-    RESERVED_FIELDS = {
+    RESERVED_FIELDS: ClassVar[set[str]] = {
         "name",
         "msg",
         "args",
@@ -69,7 +65,7 @@ class JsonLogFormatter(logging.Formatter):
     }
 
     def format(self, record: logging.LogRecord) -> str:
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": record.name,
@@ -127,9 +123,9 @@ def observe_http_request(method: str, path: str, status_code: int, elapsed_s: fl
     """Record HTTP request metrics."""
     status_label = str(status_code)
     metric_path = normalized_path(path)
-    REQUEST_LATENCY_SECONDS.labels(method=method, path=metric_path, status_code=status_label).observe(
-        elapsed_s
-    )
+    REQUEST_LATENCY_SECONDS.labels(
+        method=method, path=metric_path, status_code=status_label
+    ).observe(elapsed_s)
     HTTP_REQUEST_TOTAL.labels(method=method, path=metric_path, status_code=status_label).inc()
     if status_code >= 500:
         HTTP_REQUEST_ERRORS_TOTAL.labels(

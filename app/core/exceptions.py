@@ -1,15 +1,17 @@
 """Custom exceptions and HTTP error handlers for dspy-sme-expert."""
-from typing import Any, Dict, Optional, Union
-from fastapi import HTTPException, Request, status
-from fastapi.responses import JSONResponse
+
 import logging
 import traceback
-from enum import Enum
+from enum import StrEnum
+from typing import Any
+
+from fastapi import HTTPException, Request, status
+from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """Standard error codes for the application."""
 
     # General errors
@@ -52,7 +54,7 @@ class AppException(Exception):
         message: str,
         code: ErrorCode = ErrorCode.INTERNAL_SERVER_ERROR,
         status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None,
     ):
         super().__init__(message)
         self.message = message
@@ -64,27 +66,19 @@ class AppException(Exception):
 class ValidationException(AppException):
     """Raised when input validation fails."""
 
-    def __init__(
-        self,
-        message: str = "Validation failed",
-        details: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, message: str = "Validation failed", details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
             code=ErrorCode.VALIDATION_ERROR,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            details=details
+            details=details,
         )
 
 
 class ExpertNotFoundException(AppException):
     """Raised when a requested expert is not found."""
 
-    def __init__(
-        self,
-        expert_name: str,
-        available_experts: Optional[list] = None
-    ):
+    def __init__(self, expert_name: str, available_experts: list | None = None):
         message = f"Expert '{expert_name}' not found"
         details = {"expert_name": expert_name}
         if available_experts:
@@ -94,192 +88,143 @@ class ExpertNotFoundException(AppException):
             message=message,
             code=ErrorCode.EXPERT_NOT_FOUND,
             status_code=status.HTTP_404_NOT_FOUND,
-            details=details
+            details=details,
         )
 
 
 class ExpertInitializationException(AppException):
     """Raised when expert initialization fails."""
 
-    def __init__(
-        self,
-        expert_name: str,
-        reason: str
-    ):
+    def __init__(self, expert_name: str, reason: str):
         message = f"Failed to initialize expert '{expert_name}': {reason}"
         super().__init__(
             message=message,
             code=ErrorCode.EXPERT_INITIALIZATION_ERROR,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            details={"expert_name": expert_name, "reason": reason}
+            details={"expert_name": expert_name, "reason": reason},
         )
 
 
 class ExpertGenerationException(AppException):
     """Raised when expert generation fails."""
 
-    def __init__(
-        self,
-        expert_name: str,
-        reason: str,
-        retry_count: int = 0
-    ):
+    def __init__(self, expert_name: str, reason: str, retry_count: int = 0):
         message = f"Expert '{expert_name}' failed to generate response: {reason}"
         super().__init__(
             message=message,
             code=ErrorCode.EXPERT_GENERATION_ERROR,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            details={
-                "expert_name": expert_name,
-                "reason": reason,
-                "retry_count": retry_count
-            }
+            details={"expert_name": expert_name, "reason": reason, "retry_count": retry_count},
         )
 
 
 class ExpertTimeoutException(AppException):
     """Raised when expert operation times out."""
 
-    def __init__(
-        self,
-        expert_name: str,
-        timeout_seconds: int
-    ):
+    def __init__(self, expert_name: str, timeout_seconds: int):
         message = f"Expert '{expert_name}' timed out after {timeout_seconds} seconds"
         super().__init__(
             message=message,
             code=ErrorCode.EXPERT_TIMEOUT,
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            details={
-                "expert_name": expert_name,
-                "timeout_seconds": timeout_seconds
-            }
+            details={"expert_name": expert_name, "timeout_seconds": timeout_seconds},
         )
 
 
 class ModelException(AppException):
     """Base class for model-related exceptions."""
+
     pass
 
 
 class ModelNotAvailableException(ModelException):
     """Raised when a model is not available."""
 
-    def __init__(
-        self,
-        model_name: str,
-        provider: str
-    ):
+    def __init__(self, model_name: str, provider: str):
         message = f"Model '{model_name}' from provider '{provider}' is not available"
         super().__init__(
             message=message,
             code=ErrorCode.MODEL_NOT_AVAILABLE,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            details={"model_name": model_name, "provider": provider}
+            details={"model_name": model_name, "provider": provider},
         )
 
 
 class ModelQuotaExceededException(ModelException):
     """Raised when model quota is exceeded."""
 
-    def __init__(
-        self,
-        model_name: str,
-        provider: str
-    ):
+    def __init__(self, model_name: str, provider: str):
         message = f"Quota exceeded for model '{model_name}' from provider '{provider}'"
         super().__init__(
             message=message,
             code=ErrorCode.MODEL_QUOTA_EXCEEDED,
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            details={"model_name": model_name, "provider": provider}
+            details={"model_name": model_name, "provider": provider},
         )
 
 
 class ModelAuthenticationException(ModelException):
     """Raised when model authentication fails."""
 
-    def __init__(
-        self,
-        provider: str
-    ):
+    def __init__(self, provider: str):
         message = f"Authentication failed for provider '{provider}'"
         super().__init__(
             message=message,
             code=ErrorCode.MODEL_AUTHENTICATION_ERROR,
             status_code=status.HTTP_401_UNAUTHORIZED,
-            details={"provider": provider}
+            details={"provider": provider},
         )
 
 
 class DatabaseException(AppException):
     """Raised when database operations fail."""
 
-    def __init__(
-        self,
-        message: str = "Database operation failed",
-        operation: Optional[str] = None
-    ):
+    def __init__(self, message: str = "Database operation failed", operation: str | None = None):
         super().__init__(
             message=message,
             code=ErrorCode.DATABASE_OPERATION_ERROR,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            details={"operation": operation} if operation else {}
+            details={"operation": operation} if operation else {},
         )
 
 
 class CacheException(AppException):
     """Raised when cache operations fail."""
 
-    def __init__(
-        self,
-        message: str = "Cache operation failed",
-        operation: Optional[str] = None
-    ):
+    def __init__(self, message: str = "Cache operation failed", operation: str | None = None):
         super().__init__(
             message=message,
             code=ErrorCode.CACHE_ERROR,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            details={"operation": operation} if operation else {}
+            details={"operation": operation} if operation else {},
         )
 
 
 class FineTuningException(AppException):
     """Raised when fine-tuning operations fail."""
 
-    def __init__(
-        self,
-        message: str = "Fine-tuning operation failed",
-        phase: Optional[str] = None
-    ):
+    def __init__(self, message: str = "Fine-tuning operation failed", phase: str | None = None):
         super().__init__(
             message=message,
             code=ErrorCode.FINE_TUNING_ERROR,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            details={"phase": phase} if phase else {}
+            details={"phase": phase} if phase else {},
         )
 
 
 class RateLimitException(AppException):
     """Raised when rate limits are exceeded."""
 
-    def __init__(
-        self,
-        message: str = "Rate limit exceeded",
-        retry_after: Optional[int] = None
-    ):
+    def __init__(self, message: str = "Rate limit exceeded", retry_after: int | None = None):
         super().__init__(
             message=message,
             code=ErrorCode.RATE_LIMITED,
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            details={"retry_after": retry_after} if retry_after else {}
+            details={"retry_after": retry_after} if retry_after else {},
         )
 
 
-async def app_exception_handler(
-    request: Request,
-    exc: AppException
-) -> JSONResponse:
+async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     """Handle BitNet SME custom exceptions."""
 
     logger.error(
@@ -289,8 +234,8 @@ async def app_exception_handler(
             "status_code": exc.status_code,
             "details": exc.details,
             "path": request.url.path,
-            "method": request.method
-        }
+            "method": request.method,
+        },
     )
 
     error_response = {
@@ -299,33 +244,27 @@ async def app_exception_handler(
         "message": exc.message,
         "details": exc.details,
         "path": request.url.path,
-        "method": request.method
+        "method": request.method,
     }
 
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=error_response
-    )
+    return JSONResponse(status_code=exc.status_code, content=error_response)
 
 
-async def validation_exception_handler(
-    request: Request,
-    exc: Exception
-) -> JSONResponse:
+async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle Pydantic validation exceptions."""
 
     logger.error(
-        f"Validation error: {str(exc)}",
+        f"Validation error: {exc!s}",
         extra={
             "path": request.url.path,
             "method": request.method,
-            "error_type": type(exc).__name__
-        }
+            "error_type": type(exc).__name__,
+        },
     )
 
     # Extract validation details if available
     details = {}
-    if hasattr(exc, 'errors'):
+    if hasattr(exc, "errors"):
         details = {"validation_errors": exc.errors()}
 
     error_response = {
@@ -334,28 +273,18 @@ async def validation_exception_handler(
         "message": "Request validation failed",
         "details": details,
         "path": request.url.path,
-        "method": request.method
+        "method": request.method,
     }
 
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=error_response
-    )
+    return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=error_response)
 
 
-async def http_exception_handler(
-    request: Request,
-    exc: HTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """Handle FastAPI HTTP exceptions."""
 
     logger.error(
         f"HTTP Exception: {exc.status_code} - {exc.detail}",
-        extra={
-            "status_code": exc.status_code,
-            "path": request.url.path,
-            "method": request.method
-        }
+        extra={"status_code": exc.status_code, "path": request.url.path, "method": request.method},
     )
 
     error_response = {
@@ -364,47 +293,35 @@ async def http_exception_handler(
         "message": exc.detail,
         "details": {},
         "path": request.url.path,
-        "method": request.method
+        "method": request.method,
     }
 
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=error_response
-    )
+    return JSONResponse(status_code=exc.status_code, content=error_response)
 
 
-async def general_exception_handler(
-    request: Request,
-    exc: Exception
-) -> JSONResponse:
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected exceptions."""
 
     error_id = f"error_{hash(str(exc))}"
 
     logger.error(
-        f"Unexpected error [{error_id}]: {str(exc)}",
+        f"Unexpected error [{error_id}]: {exc!s}",
         extra={
             "error_id": error_id,
             "error_type": type(exc).__name__,
             "path": request.url.path,
             "method": request.method,
-            "traceback": traceback.format_exc()
-        }
+            "traceback": traceback.format_exc(),
+        },
     )
 
     error_response = {
         "error": True,
         "code": ErrorCode.INTERNAL_SERVER_ERROR.value,
         "message": "An unexpected error occurred",
-        "details": {
-            "error_id": error_id,
-            "error_type": type(exc).__name__
-        },
+        "details": {"error_id": error_id, "error_type": type(exc).__name__},
         "path": request.url.path,
-        "method": request.method
+        "method": request.method,
     }
 
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content=error_response
-    )
+    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=error_response)

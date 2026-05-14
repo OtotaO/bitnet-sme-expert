@@ -37,7 +37,11 @@ async def main() -> None:
 
     queries: list[tuple[str, object, dict]] = [
         ("What is 5 * 8?", math_expert, {}),
-        ("Write a Python function that returns the n-th Fibonacci number.", code_expert, {"language": "python"}),
+        (
+            "Write a Python function that returns the n-th Fibonacci number.",
+            code_expert,
+            {"language": "python"},
+        ),
         ("What is the capital of France?", general_expert, {}),
     ]
 
@@ -45,7 +49,9 @@ async def main() -> None:
         print(f"\n[{expert.config.name}] {question}")
         result = await expert.generate(question, context=context)
         print(f"  -> {result['response']}")
-        print(f"     ({result['metadata'].get('model')}, {result['metadata'].get('processing_time', 0.0):.2f}s)")
+        print(
+            f"     ({result['metadata'].get('model')}, {result['metadata'].get('processing_time', 0.0):.2f}s)"
+        )
 
 
 if __name__ == "__main__":

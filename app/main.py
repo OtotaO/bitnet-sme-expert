@@ -8,9 +8,10 @@ standard middleware (CORS, auth, structured logging, rate limiting).
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status
@@ -43,7 +44,7 @@ expert_service: ExpertService | None = None
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     """Initialize / tear down the expert service and DSPy."""
-    global expert_service
+    global expert_service  # noqa: PLW0603 — module-level singleton wired in lifespan
     logger.info("app.startup")
 
     configure_dspy()
@@ -134,6 +135,7 @@ app.include_router(api_router, prefix=settings.API_PREFIX)
 # Health & ops endpoints
 # ---------------------------------------------------------------------------
 
+
 def _check_database() -> dict[str, Any]:
     from sqlalchemy import text
 
@@ -170,7 +172,7 @@ async def root() -> dict[str, Any]:
 
 @app.get("/health")
 @limiter.limit("60/minute")
-async def health(request: Request) -> dict[str, Any]:  # noqa: ARG001 - limiter needs request
+async def health(request: Request) -> dict[str, Any]:
     return {
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
@@ -187,12 +189,16 @@ async def liveness() -> dict[str, Any]:
 async def readiness() -> JSONResponse:
     checks: dict[str, Any] = {}
     failures: dict[str, str] = {}
-    for name, fn in (("database", _check_database), ("redis", _check_redis), ("experts", _check_experts)):
+    for name, fn in (
+        ("database", _check_database),
+        ("redis", _check_redis),
+        ("experts", _check_experts),
+    ):
         try:
             checks[name] = fn()
             if checks[name].get("status") == "error":
                 failures[name] = checks[name].get("reason", "unknown")
-        except Exception as exc:  # noqa: BLE001 - readiness must not throw
+        except Exception as exc:
             failures[name] = str(exc)
             checks[name] = {"status": "error", "error": str(exc)}
 
@@ -212,7 +218,7 @@ async def metrics() -> PlainTextResponse:
 
 @app.post("/cache/clear")
 @limiter.limit("5/minute")
-async def cache_clear(request: Request) -> dict[str, Any]:  # noqa: ARG001 - limiter needs request
+async def cache_clear(request: Request) -> dict[str, Any]:
     from app.utils.cache import cache
 
     cache.clear()

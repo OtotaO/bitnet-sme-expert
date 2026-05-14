@@ -100,7 +100,9 @@ def configure_dspy(enable_mlflow: bool | None = None) -> None:
     """
     dspy.configure(lm=get_lm("general"), async_max_workers=settings.MAX_CONCURRENT_REQUESTS)
 
-    enable = enable_mlflow if enable_mlflow is not None else bool(os.environ.get("MLFLOW_TRACKING_URI"))
+    enable = (
+        enable_mlflow if enable_mlflow is not None else bool(os.environ.get("MLFLOW_TRACKING_URI"))
+    )
     if not enable:
         logger.info("llm.mlflow_disabled")
         return
