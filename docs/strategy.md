@@ -59,13 +59,13 @@ leverage now is **credibility and distribution, not more features**:
 Ordered by leverage. Each is a checkable outcome, not a vibe.
 
 1. **Trustworthy eval.** *(Mostly done.)* Holdouts are now 50 items/domain (150
-   total) and eval is pinned to `temperature=0` for reproducible scores. On the
-   harder set math fell to 0.62 (from 0.73 on the easy 15), so the gate now
-   bites. **Remaining:** report a Wilson lower bound and gate on it rather than
-   the point estimate; add a fixed sampling seed; and replace the lenient
-   substring metrics for code/general (they still saturate at 1.00) with
-   behavioral checks. *Done when:* CI reports a CI/lower-bound per score and the
-   code/general metrics can distinguish a good model from a mediocre one.
+   total); eval is pinned to `temperature=0`; a 95% Wilson interval is reported
+   per domain. An **execution-based code metric** (`tests/eval/exec.py`: runs the
+   generated code against committed assertions in a timeout-bounded, scrubbed
+   subprocess) plus a seed `code_exec.jsonl` set is the path off the saturating
+   substring metric. **Remaining:** expand that set and flip the code gate onto
+   it (needs an opt-in CI job); gate on the Wilson *lower* bound rather than the
+   point estimate (needs larger N); add an LLM-judge for `general`; fixed seed.
 2. **A real optimizer win, recorded.** *(Done — first instance.)*
    `eval/receipts/math-miprov2.json` records MIPROv2-light lifting math from 0.62
    to 0.80 (**+0.18**) on the 50-item holdout at temp 0. **Remaining:** confirm
@@ -115,7 +115,11 @@ receipts (incl. a negative one); an opt-in, default-deny code-execution sandbox
 Recently hardened: holdouts grown to 50/domain (150 total) and eval pinned to
 `temperature=0`; `/query` and `/collaborate` are now rate-limited; the math
 fast-path is exact and its sympy tools are bounded against DoS; ~690 lines of
-dead code removed.
+dead code removed; authorization moved to per-route dependencies; feedback is
+persisted; optimizer runs log to MLflow. The experts are now exposed over **MCP**
+(`app/mcp_server.py`) — aligning with the 2026 de-facto agent-interface standard
+the research flagged — and an execution-based code-eval harness lays the
+foundation for behavioral metrics.
 
 Known limitations, tracked as the goals above and in the audit follow-ups issue:
 code/general eval metrics are lenient substring proxies (saturate at 1.00) — the

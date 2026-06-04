@@ -230,12 +230,31 @@ truth regardless of whether MLflow is configured.
 
 Interactive docs at `/docs` (Swagger) and `/redoc`.
 
+## MCP server
+
+The experts are also exposed over the [Model Context Protocol](https://modelcontextprotocol.io)
+so any MCP host (Claude Desktop, IDEs, agent runtimes) can route questions to
+them. Built on the official `mcp` SDK; install the extra and run over stdio:
+
+```bash
+uv sync --extra mcp
+uv run dspy-sme-mcp          # serves over stdio
+```
+
+Tools: `ask_expert(question, domain?)` (auto-routes when `domain` is omitted)
+and `list_experts()`. The same DSPy programs back both the HTTP API and the MCP
+tools (shared `app/bootstrap.py`).
+
 ## Project layout
 
 ```
 app/
 ├── main.py                  FastAPI app + lifespan
 ├── cli.py                   `dspy-sme` console script
+├── mcp_server.py            `dspy-sme-mcp` — MCP server over the experts ([mcp] extra)
+├── bootstrap.py             Shared expert-service construction (app + MCP)
+├── auth.py                  Per-route auth dependencies (require_role)
+├── limiter.py               Shared SlowAPI limiter
 ├── llm.py                   DSPy LM configuration (LiteLLM + MLflow)
 ├── config.py                Settings (Pydantic v2)
 ├── observability.py         JSON logging + Prometheus metrics
@@ -248,9 +267,9 @@ app/
 ├── experts/                 Thin wrappers exposing the API contract (see experts/README.md)
 ├── services/                ExpertService (routing, collaborate, fine-tuning)
 ├── api/endpoints/           FastAPI routes (core + fine_tuning)
-├── middleware/              CORS, auth (PyJWT), logging, errors
+├── middleware/              CORS, logging, errors (auth is per-route, see auth.py)
 ├── schemas/                 Pydantic v2 request/response models
-├── models/                  Abstract expert base + ORM models
+├── models/                  Abstract expert base, training + feedback ORM models
 ├── retrieval/               Optional hybrid RAG (LanceDB + BGE), [rag] extra
 ├── core/                    Exceptions and shared internals
 ├── database.py              Engine + session bootstrap

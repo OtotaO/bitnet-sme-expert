@@ -22,6 +22,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.api.endpoints import api_router
 from app.auth import require_role
+from app.bootstrap import register_experts
 from app.config import settings
 from app.database import Base, engine, init_db
 from app.limiter import limiter
@@ -60,7 +61,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     configure_dspy()
 
     expert_service = ExpertService()
-    await _register_experts(expert_service)
+    await register_experts(expert_service)
     await expert_service.initialize()
     logger.info("app.startup.completed")
 
@@ -71,48 +72,6 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         if expert_service is not None:
             await expert_service.cleanup()
             expert_service = None
-
-
-async def _register_experts(service: ExpertService) -> None:
-    """Register all bundled experts. The actual LM per expert lives in ``app/llm.py``."""
-    from app.experts.code_expert import CodeExpert
-    from app.experts.general_expert import GeneralExpert
-    from app.experts.math_expert import MathExpert
-    from app.schemas.base import ExpertDomain
-
-    service.register_expert_class(
-        domain=ExpertDomain.MATH,
-        expert_class=MathExpert,
-        config={
-            "name": "Math Expert",
-            "description": "ReAct over sympy tools, with a deterministic fast-path for trivial expressions.",
-            "domain": ExpertDomain.MATH,
-        },
-    )
-    service.register_expert_class(
-        domain=ExpertDomain.CODE,
-        expert_class=CodeExpert,
-        config={
-            "name": "Code Expert",
-            "description": "ChainOfThought for code generation, debugging, refactoring, and review.",
-            "domain": ExpertDomain.CODE,
-        },
-    )
-    service.register_expert_class(
-        domain=ExpertDomain.GENERAL,
-        expert_class=GeneralExpert,
-        config={
-            "name": "General Expert",
-            "description": "ChainOfThought for open-ended general knowledge questions.",
-            "domain": ExpertDomain.GENERAL,
-        },
-    )
-
-    # Materialize one instance per domain so the API can resolve experts by domain.
-    for domain in (ExpertDomain.MATH, ExpertDomain.CODE, ExpertDomain.GENERAL):
-        await service.create_expert(domain)
-
-    logger.info("experts.registered", extra={"count": len(service._experts)})
 
 
 # ---------------------------------------------------------------------------
