@@ -7,9 +7,13 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.database import get_db_session
 from app.limiter import limiter
+from app.models.feedback import Feedback
+from app.observability import get_request_id
 from app.schemas.base import BaseResponse, ExpertDomain
 from app.schemas.request import CollaborateRequest, FeedbackRequest, QueryRequest
 from app.schemas.response import (
@@ -193,14 +197,25 @@ async def collaborate(
 )
 async def submit_feedback(
     request: FeedbackRequest,
-    _: ExpertService = Depends(get_expert_service),
+    db: Session = Depends(get_db_session),
 ) -> BaseResponse:
+    request_id = get_request_id()
+    row = Feedback(
+        query_id=request.query_id,
+        rating=request.rating,
+        feedback=request.feedback,
+        corrections=request.corrections,
+        request_id=None if request_id == "-" else request_id,
+    )
+    db.add(row)
+    db.commit()
     logger.info(
-        "feedback.received",
+        "feedback.persisted",
         extra={
+            "feedback_id": row.id,
             "query_id": request.query_id,
             "rating": request.rating,
-            "feedback_len": len(request.feedback or ""),
+            "request_id": request_id,
         },
     )
     return BaseResponse(success=True, message="Feedback received, thank you!")

@@ -84,15 +84,40 @@ def _pin_temperature(temperature: float) -> None:
         os.environ[f"DSPY_LM_{role.upper()}_TEMPERATURE"] = str(temperature)
 
 
+def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95% Wilson score interval for a binomial pass-rate.
+
+    Used instead of the normal/Wald approximation, which severely understates
+    uncertainty at small N and near 0/1 (see Bowyer et al., ICML 2025, "Don't
+    Use the CLT in LLM Evals With Fewer Than a Few Hundred Datapoints"). At our
+    N=50 holdouts the Wald interval would look misleadingly tight. Zero new
+    dependencies — it's a closed form.
+    """
+    if n == 0:
+        return (0.0, 0.0)
+    p = successes / n
+    denom = 1 + z**2 / n
+    center = (p + z**2 / (2 * n)) / denom
+    half = (z * ((p * (1 - p) / n + z**2 / (4 * n**2)) ** 0.5)) / denom
+    return (max(0.0, center - half), min(1.0, center + half))
+
+
 def run_domain(domain: str, threshold: float, num_threads: int) -> dict[str, object]:
     program, examples, metric = _build(domain)
+    n = len(examples)
     evaluator = dspy.Evaluate(devset=examples, num_threads=num_threads, display_progress=False)
     score = to_fraction(evaluator(program, metric=metric))
+    successes = round(score * n)  # metric is 0/1 per item, so this is exact
+    lo, hi = wilson_interval(successes, n)
     return {
         "domain": domain,
         "split": "holdout",
-        "n": len(examples),
+        "n": n,
         "score": round(score, 4),
+        # 95% Wilson interval — reported for transparency. The gate is on the
+        # point estimate; gating on the lower bound would need larger N (the
+        # interval at N=50 is wide). See docs/strategy.md goal 1.
+        "ci95": [round(lo, 4), round(hi, 4)],
         "threshold": threshold,
         "passed": score >= threshold,
     }

@@ -34,7 +34,7 @@ dependencies = [
   "python-multipart>=0.0.12",
 
   # DSPy core stack
-  "dspy>=3.2.0",
+  "dspy>=3.2.1",
   "litellm>=1.55",
   "mlflow>=3.0",
 

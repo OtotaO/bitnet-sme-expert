@@ -103,9 +103,10 @@ def configure_dspy(enable_mlflow: bool | None = None) -> None:
 
     Called once at app startup. MLflow autolog gives free OpenTelemetry-based
     tracing of every module call. Toggled by ``MLFLOW_TRACKING_URI`` being set,
-    or the explicit arg. (``scripts/optimize.py`` runs with autolog disabled and
-    records optimizer results as committed receipts under ``eval/receipts/``
-    instead; sending optimizer runs to MLflow is a future enhancement.)
+    or the explicit arg. (``scripts/optimize.py`` configures its own MLflow run
+    to log baseline/optimized/delta metrics + the receipt when
+    ``MLFLOW_TRACKING_URI`` is set; the committed receipts under ``eval/receipts/``
+    are the source of truth either way.)
     """
     dspy.configure(lm=get_lm("general"), async_max_workers=settings.MAX_CONCURRENT_REQUESTS)
 

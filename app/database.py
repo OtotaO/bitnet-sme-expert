@@ -24,7 +24,7 @@ class Base(DeclarativeBase):
 
 
 def init_db() -> None:
-    """Bootstrap tables. Alembic owns migrations in production."""
+    """Bootstrap tables via create_all (no migration tool is wired in yet)."""
     Base.metadata.create_all(bind=engine)
 
 

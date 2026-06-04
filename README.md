@@ -99,6 +99,13 @@ make optimize-math
 make optimize-math-gepa
 ```
 
+`MIPROv2 (auto=light)` is a solid default for our small (~50-example) train sets
+and is what produced the committed +0.18 math win. For instruction-heavy gains,
+**GEPA** (reflective prompt evolution, an ICLR 2026 result reported to beat
+MIPROv2 by >10% on such tasks) is the stronger lever and is worth preferring as
+the gold sets grow — especially if you have its metric return short natural-language
+feedback, which is where its edge comes from.
+
 Compiled programs are loaded automatically at startup. To re-run the eval
 harness against the compiled programs:
 
@@ -175,18 +182,23 @@ export DSPY_LM_MATH_API_KEY_ENV="BITNET_DUMMY_KEY"
 export BITNET_DUMMY_KEY="local"
 ```
 
-The 2B-4T BitNet model is a useful cheap fallback for PII-sensitive or offline
-workloads. Throughput is hardware-dependent — measure it on your own box rather
-than trusting a headline number:
+The 2B-4T BitNet model is a useful local fallback for PII-sensitive or offline
+workloads. Its real edge is **footprint and energy**, not raw quality: ~0.4 GB
+non-embedding memory and ~10× lower energy than comparable fp16 small models, at
+competitive-but-not-superior ~2B quality (it trails Qwen2.5-1.5B on MMLU).
+Throughput is hardware-dependent — measure it on your own box:
 
 ```bash
 make bitnet-demo   # sends a fixed prompt through the DSPy path, prints
                    # measured tok/s, writes eval/receipts/bitnet-<date>.txt
 ```
 
-(Microsoft's published bitnet.cpp benchmarks put the b1.58-2B-4T model in the
-~5-7 tok/s range on a typical x86 CPU core; this repo ships no measured figure
-of its own until `make bitnet-demo` produces one.)
+(Microsoft's model card reports ~29 ms/token CPU decode latency for the
+b1.58-2B-4T model via `bitnet.cpp` — the `transformers` path gets none of that
+speedup. The widely-quoted "5-7 tok/s" figure is the **100B** BitNet, not this
+2B model. This repo ships no measured figure of its own until `make bitnet-demo`
+produces one. If you want a larger local ecosystem, a Q4 Qwen3-1.7B / Gemma-3-1B
+on llama.cpp drops into the same `openai/`-compatible provider slot.)
 
 ## Observability
 
@@ -194,10 +206,11 @@ Set `MLFLOW_TRACKING_URI` (or run `docker compose up mlflow`) to enable
 `mlflow.dspy.autolog()`. Every module call at serve/eval time produces an
 OpenTelemetry span you can inspect in the MLflow UI.
 
-Optimizer runs are **not** sent to MLflow today (`scripts/optimize.py` runs with
-autolog disabled); the baseline-vs-compiled scores are instead captured as
-committed receipts under `eval/receipts/` (see "Eval gate & receipts" above).
-Wiring optimizer runs into MLflow for in-UI A/B is a tracked future enhancement.
+When `MLFLOW_TRACKING_URI` is set, `scripts/optimize.py` also logs each optimizer
+run as an MLflow run — params plus the baseline/optimized/delta metrics, with the
+committed receipt attached as an artifact — so compiled programs are A/B-comparable
+in the UI. The committed receipts under `eval/receipts/` remain the source of
+truth regardless of whether MLflow is configured.
 
 ## API
 

@@ -146,15 +146,16 @@ jobs:
             const rows = results.map(r => {
               const mark = r.passed ? ':white_check_mark:' : ':x:';
               const errSuffix = r.error ? ` (error: \`${r.error}\`)` : '';
-              return `| \`${r.domain}\` | ${r.n} | **${r.score.toFixed(2)}** | ${r.threshold.toFixed(2)} | ${mark}${errSuffix} |`;
+              const ci = Array.isArray(r.ci95) ? `${r.ci95[0].toFixed(2)}–${r.ci95[1].toFixed(2)}` : '—';
+              return `| \`${r.domain}\` | ${r.n} | **${r.score.toFixed(2)}** | ${ci} | ${r.threshold.toFixed(2)} | ${mark}${errSuffix} |`;
             }).join('\n');
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
             const body = [
               `### Eval results — \`${lm}\``,
               '',
-              '| Domain | N | Score | Threshold | Pass |',
-              '|---|---:|---:|---:|:---:|',
-              rows || '| _no results_ | | | | |',
+              '| Domain | N | Score | 95% CI (Wilson) | Threshold | Pass |',
+              '|---|---:|---:|:---:|---:|:---:|',
+              rows || '| _no results_ | | | | | |',
               '',
               `<sub>workflow run: [#${runId}](${runUrl})</sub>`,
             ].join('\n');

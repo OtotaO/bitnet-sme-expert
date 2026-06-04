@@ -134,7 +134,37 @@ def main() -> int:
     receipt = RECEIPTS_DIR / f"{args.domain}-{args.optimizer}.json"
     receipt.write_text(json.dumps(summary, indent=2))
     print(f"Wrote receipt to {receipt.relative_to(ROOT)}")
+
+    _log_to_mlflow(summary, receipt)
     return 0
+
+
+def _log_to_mlflow(summary: dict, receipt: Path) -> None:
+    """Log this optimizer run to MLflow when MLFLOW_TRACKING_URI is set (else no-op).
+
+    Records params + baseline/optimized/delta metrics and attaches the committed
+    receipt, so runs are A/B-comparable in the MLflow UI. Best-effort: a logging
+    failure must not fail the compile.
+    """
+    if not os.environ.get("MLFLOW_TRACKING_URI"):
+        return
+    try:
+        import mlflow
+
+        mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
+        mlflow.set_experiment(os.environ.get("MLFLOW_EXPERIMENT_NAME", "dspy-sme-expert-optimize"))
+        with mlflow.start_run(run_name=f"{summary['domain']}-{summary['optimizer']}"):
+            mlflow.log_params(
+                {
+                    k: summary[k]
+                    for k in ("domain", "optimizer", "auto", "lm", "n_train", "n_holdout")
+                }
+            )
+            mlflow.log_metrics({k: float(summary[k]) for k in ("baseline", "optimized", "delta")})
+            mlflow.log_artifact(str(receipt))
+        print("Logged optimizer run to MLflow.")
+    except Exception as exc:
+        print(f"MLflow logging skipped ({type(exc).__name__}: {exc})")
 
 
 if __name__ == "__main__":

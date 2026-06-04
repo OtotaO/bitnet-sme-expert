@@ -118,8 +118,9 @@ fast-path is exact and its sympy tools are bounded against DoS; ~690 lines of
 dead code removed.
 
 Known limitations, tracked as the goals above and in the audit follow-ups issue:
-code/general eval metrics are lenient substring proxies (saturate at 1.00); no
-Wilson-bound gating yet; feedback is logged but not persisted; a few optional
-features (litellm fallback chains, MLflow optimizer-run tracking) are
-reserved/designed-for rather than wired. These are roadmap, not secrets — the
-docs say so where each appears.
+code/general eval metrics are lenient substring proxies (saturate at 1.00) — the
+Wilson 95% interval is now reported per domain, but the gate is still on the
+point estimate (lower-bound gating needs larger N); `LMSpec.fallbacks` is
+reserved rather than wired. Feedback is now persisted, auth is per-route, and
+optimizer runs log to MLflow when configured — those earlier gaps are closed.
+The remaining items are roadmap, not secrets; the docs say so where each appears.
