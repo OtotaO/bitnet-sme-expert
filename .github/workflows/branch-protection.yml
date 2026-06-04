@@ -24,7 +24,8 @@ jobs:
                   'lint',
                   'test',
                   'build-container',
-                  'security'
+                  'security',
+                  'eval'
                 ]
               },
               enforce_admins: true,

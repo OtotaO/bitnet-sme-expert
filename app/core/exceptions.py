@@ -2,6 +2,7 @@
 
 import logging
 import traceback
+import uuid
 from enum import StrEnum
 from typing import Any
 
@@ -302,7 +303,10 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected exceptions."""
 
-    error_id = f"error_{hash(str(exc))}"
+    # Stable, collision-free correlation id (the old hash(str(exc)) could collide
+    # and isn't process-stable). The exception type is logged server-side but not
+    # returned to the client — it leaks internal implementation detail.
+    error_id = f"err_{uuid.uuid4().hex[:16]}"
 
     logger.error(
         f"Unexpected error [{error_id}]: {exc!s}",
@@ -319,7 +323,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
         "error": True,
         "code": ErrorCode.INTERNAL_SERVER_ERROR.value,
         "message": "An unexpected error occurred",
-        "details": {"error_id": error_id, "error_type": type(exc).__name__},
+        "details": {"error_id": error_id},
         "path": request.url.path,
         "method": request.method,
     }

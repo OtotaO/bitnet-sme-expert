@@ -48,3 +48,27 @@ def test_default_thresholds_cover_every_domain() -> None:
 def test_build_unknown_domain_raises() -> None:
     with pytest.raises(ValueError, match="unknown domain"):
         run_eval._build("nonsense")
+
+
+def test_wilson_interval_small_sample() -> None:
+    # 31/50 = 0.62 -> Wilson 95% ~ [0.48, 0.74]; much wider than the naive 0.62.
+    lo, hi = run_eval.wilson_interval(31, 50)
+    assert 0.47 < lo < 0.50
+    assert 0.73 < hi < 0.75
+    assert lo < 0.62 < hi
+
+
+def test_wilson_interval_saturated_and_empty() -> None:
+    lo, hi = run_eval.wilson_interval(50, 50)
+    assert lo > 0.92  # even a perfect score isn't certainty at N=50
+    assert hi == 1.0
+    assert run_eval.wilson_interval(0, 0) == (0.0, 0.0)
+
+
+def test_pin_temperature_sets_all_roles(monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+
+    for role in run_eval._ALL_ROLES:
+        monkeypatch.delenv(f"DSPY_LM_{role.upper()}_TEMPERATURE", raising=False)
+    run_eval._pin_temperature(0.0)
+    assert all(os.environ[f"DSPY_LM_{r.upper()}_TEMPERATURE"] == "0.0" for r in run_eval._ALL_ROLES)

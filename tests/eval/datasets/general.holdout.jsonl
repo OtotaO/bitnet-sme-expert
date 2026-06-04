@@ -1,0 +1,50 @@
+{"question": "What is the capital of Canada?", "must_contain": ["Ottawa"]}
+{"question": "What is the chemical symbol for silver?", "must_contain": ["Ag"]}
+{"question": "Who wrote the novel War and Peace?", "must_contain": ["Tolstoy"]}
+{"question": "What is the largest desert in the world by area (including polar deserts)?", "must_contain": ["Antarctic"]}
+{"question": "How many sides does a hexagon have?", "must_contain": ["6", "six"]}
+{"question": "What chemical element has atomic number 1?", "must_contain": ["hydrogen"]}
+{"question": "Who is credited with inventing the printing press in Europe in the 15th century?", "must_contain": ["Gutenberg"]}
+{"question": "What is the capital of Egypt?", "must_contain": ["Cairo"]}
+{"question": "What planet has the most prominent ring system?", "must_contain": ["Saturn"]}
+{"question": "Who painted The Starry Night?", "must_contain": ["van Gogh", "Gogh"]}
+{"question": "What element, essential for human respiration, has the chemical symbol O?", "must_contain": ["oxygen"]}
+{"question": "In what year did the Berlin Wall fall?", "must_contain": ["1989"]}
+{"question": "What is the longest mountain range on land in the world?", "must_contain": ["Andes"]}
+{"question": "Who wrote the theory of gravitation described in Principia Mathematica?", "must_contain": ["Newton"]}
+{"question": "What is the largest mammal on Earth?", "must_contain": ["blue whale"]}
+{"question": "What is the chemical symbol for lead?", "must_contain": ["Pb"]}
+{"question": "Who wrote the novel Crime and Punishment?", "must_contain": ["Dostoevsky", "Dostoyevsky"]}
+{"question": "What is the capital of South Korea?", "must_contain": ["Seoul"]}
+{"question": "What is the largest planet's largest moon, the biggest moon in the solar system?", "must_contain": ["Ganymede"]}
+{"question": "In what year did the Titanic sink?", "must_contain": ["1912"]}
+{"question": "What is the SI base unit of temperature?", "must_contain": ["kelvin"]}
+{"question": "How many degrees are in the interior angles of a triangle, summed?", "must_contain": ["180"]}
+{"question": "Who painted Guernica?", "must_contain": ["Picasso"]}
+{"question": "What is the chemical symbol for tin?", "must_contain": ["Sn"]}
+{"question": "What is the capital of Norway?", "must_contain": ["Oslo"]}
+{"question": "What is the powerhouse molecule that cells use as their main energy currency, abbreviated ATP?", "must_contain": ["adenosine triphosphate", "atp"]}
+{"question": "Who composed The Four Seasons set of violin concertos?", "must_contain": ["Vivaldi"]}
+{"question": "What is the longest bone in the human body?", "must_contain": ["femur"]}
+{"question": "What is the smallest planet in our solar system?", "must_contain": ["Mercury"]}
+{"question": "In what year did Christopher Columbus first reach the Americas?", "must_contain": ["1492"]}
+{"question": "What chemical element, with the chemical symbol K, is the main electrolyte found inside cells?", "must_contain": ["potassium", "kalium"]}
+{"question": "Who wrote the play The Importance of Being Earnest?", "must_contain": ["Wilde"]}
+{"question": "What is the capital of Kenya?", "must_contain": ["Nairobi"]}
+{"question": "What is the most abundant element in the universe by mass?", "must_contain": ["hydrogen"]}
+{"question": "How many strings does a standard violin have?", "must_contain": ["4", "four"]}
+{"question": "What is the largest lake by surface area in the world (a saltwater lake)?", "must_contain": ["Caspian"]}
+{"question": "Who developed the periodic table arrangement of elements published in 1869?", "must_contain": ["Mendeleev"]}
+{"question": "What is the second lightest chemical element, a noble gas used to fill balloons?", "must_contain": ["helium"]}
+{"question": "What is the capital of Brazil?", "must_contain": ["Brasilia", "Brasília"]}
+{"question": "Who wrote the novel Moby-Dick?", "must_contain": ["Melville"]}
+{"question": "What is the square of 13?", "must_contain": ["169"]}
+{"question": "What is the name of the galaxy that contains our solar system?", "must_contain": ["Milky Way"]}
+{"question": "In what year did the United States Declaration of Independence get adopted?", "must_contain": ["1776"]}
+{"question": "What is the hardest substance found in the human body?", "must_contain": ["enamel"]}
+{"question": "Who composed the Brandenburg Concertos?", "must_contain": ["Bach"]}
+{"question": "What is the chemical symbol for calcium?", "must_contain": ["Ca"]}
+{"question": "What is the capital of Greece?", "must_contain": ["Athens"]}
+{"question": "How many planets are in our solar system (per the IAU definition)?", "must_contain": ["8", "eight"]}
+{"question": "Who wrote the novel One Hundred Years of Solitude?", "must_contain": ["Garcia Marquez", "García Márquez", "Marquez", "Márquez"]}
+{"question": "What is the name of the deepest oceanic trench on Earth?", "must_contain": ["Mariana"]}
