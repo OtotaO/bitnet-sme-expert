@@ -7,6 +7,23 @@ this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Substrate-agnostic deployment playbook** (`docs/deployment-modal-hf.md`).
+  Documents four first-class substrates side by side — HF Inference Providers,
+  Modal-hosted vLLM, BitNet local, and frontier APIs — with copy-paste env
+  recipes for each. README and `docs/specialization.md` rebalanced to lead
+  with "specialize whatever base fits your envelope" instead of BitNet-first.
+- **`scripts/modal_serve.py`** — one-file deployment of a vLLM
+  OpenAI-compatible endpoint on Modal. Parameterized via env (`MODEL_NAME`,
+  `GPU`, `MIN_CONTAINERS`, etc.). Modal Volume caches HF weights across
+  cold starts. `make modal-deploy` runs it.
+- **`scripts/modal_finetune.py`** — Modal H100 fine-tuning with Unsloth + TRL
+  using the same `SFTConfig` shape as `app/services/fine_tuning.py`. Pushes
+  the resulting LoRA adapter to a configurable HF repo. `make modal-finetune
+  BASE=... DATASET=... OUTPUT=...` runs it.
+- **HF Inference Providers support is config-only** — LiteLLM handles
+  `huggingface/<provider>/<org>/<model>` natively, so a single `HF_TOKEN` +
+  `DSPY_LM_<ROLE>=huggingface/auto/...` is the full integration. Documented
+  in `.env.example`.
 - **Agentic Hybrid RAG for the GeneralExpert** (opt-in, behind `RAG_ENABLED=1`).
   When the env var is set, `GeneralProgram` switches from `dspy.ChainOfThought`
   to `dspy.ReAct` with a `retrieve(query)` tool backed by
