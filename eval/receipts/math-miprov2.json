@@ -4,9 +4,9 @@
   "auto": "light",
   "lm": "openai/gpt-4o-mini",
   "split": "train->holdout",
-  "baseline": 0.7333,
-  "optimized": 0.6,
-  "delta": -0.13329999999999997,
-  "n_train": 45,
-  "n_holdout": 15
+  "baseline": 0.62,
+  "optimized": 0.8,
+  "delta": 0.18000000000000005,
+  "n_train": 50,
+  "n_holdout": 50
 }

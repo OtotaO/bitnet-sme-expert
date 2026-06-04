@@ -38,3 +38,13 @@
 {"request": "Write a Python function that checks whether a string is a palindrome, ignoring case and spaces", "language": "python", "must_contain": ["def", "palindrome", "return"]}
 {"request": "Write a recursive Python function that computes the sum of a nested list of integers of arbitrary depth", "language": "python", "must_contain": ["def", "isinstance", "return"]}
 {"request": "Write a Python lambda assigned to a variable that squares its input", "language": "python", "must_contain": ["lambda", "="]}
+{"request": "Write a recursive Python function that computes the nth term of the Fibonacci sequence", "language": "python", "must_contain": ["def", "return"]}
+{"request": "Write a Python function that performs a breadth-first search over a graph given as an adjacency dict and returns visited nodes in order", "language": "python", "must_contain": ["def", "bfs", "return"]}
+{"request": "Write a Python function that performs a depth-first traversal of a graph recursively and returns the visited set", "language": "python", "must_contain": ["def", "dfs", "return"]}
+{"request": "Write a Python function using itertools.groupby to group consecutive equal elements of a list into sublists", "language": "python", "must_contain": ["import", "groupby", "def", "return"]}
+{"request": "Write a Python function that uses functools.reduce to multiply all numbers in a list together", "language": "python", "must_contain": ["import", "reduce", "def", "return"]}
+{"request": "Write a Python generator that yields the running cumulative sum of an iterable of numbers", "language": "python", "must_contain": ["def", "yield", "for"]}
+{"request": "Write a Python function with type hints that maps an optional string to its length and returns an int, using Optional", "language": "python", "must_contain": ["import", "->", "def", "return"]}
+{"request": "Write a Python function that uses re to split a string on any run of punctuation characters and returns the tokens", "language": "python", "must_contain": ["import", "re", "def", "return"]}
+{"request": "Write a Python contextmanager using contextlib that suppresses a given exception type around a block", "language": "python", "must_contain": ["import", "yield", "with"]}
+{"request": "Write a Python function that computes the edit distance between two strings using dynamic programming", "language": "python", "must_contain": ["def", "for", "return"]}

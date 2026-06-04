@@ -38,3 +38,13 @@
 {"question": "What is the boiling point of water at sea level in degrees Celsius?", "must_contain": ["100", "one hundred"]}
 {"question": "What is the closest planet to the Sun?", "must_contain": ["Mercury"]}
 {"question": "What metal is liquid at room temperature?", "must_contain": ["mercury"]}
+{"question": "What chemical element, used in incandescent light bulb filaments, has the chemical symbol W?", "must_contain": ["tungsten", "wolfram"]}
+{"question": "Who wrote the dystopian novel 1984?", "must_contain": ["Orwell"]}
+{"question": "What is the largest moon of Saturn?", "must_contain": ["Titan"]}
+{"question": "In what year did the French Revolution begin?", "must_contain": ["1789"]}
+{"question": "What is the SI base unit of electric current?", "must_contain": ["ampere", "amp"]}
+{"question": "What is the largest internal organ in the human body?", "must_contain": ["liver"]}
+{"question": "Who composed the opera The Magic Flute?", "must_contain": ["Mozart"]}
+{"question": "What is the capital of Argentina?", "must_contain": ["Buenos Aires"]}
+{"question": "What is the value of 7 factorial (7!)?", "must_contain": ["5040", "5,040"]}
+{"question": "What sea is the saltiest large body of water bordering Jordan and Israel, famous for high buoyancy?", "must_contain": ["Dead Sea"]}

@@ -13,3 +13,38 @@
 {"request": "Write a Python function that appends a line to a log file using a with open in append mode", "language": "python", "must_contain": ["def", "open", "with", "write"]}
 {"request": "Write a Python function that finds the most common element in a list using collections.Counter", "language": "python", "must_contain": ["import", "Counter", "def", "return"]}
 {"request": "Write a Python function that implements quicksort recursively and returns a new sorted list", "language": "python", "must_contain": ["def", "quicksort", "return"]}
+{"request": "Write a recursive Python function that computes the power of a base raised to an integer exponent using fast exponentiation", "language": "python", "must_contain": ["def", "return"]}
+{"request": "Write a recursive Python function that flattens an arbitrarily nested list of integers into a flat list", "language": "python", "must_contain": ["def", "isinstance", "return"]}
+{"request": "Write a Python decorator named cached that stores results of a function in a dictionary keyed by arguments", "language": "python", "must_contain": ["def", "wrapper", "@"]}
+{"request": "Write a Python decorator using functools.wraps that prints before and after a function runs", "language": "python", "must_contain": ["import", "wraps", "@", "def"]}
+{"request": "Write a Python generator that yields the Collatz sequence starting from a given integer until it reaches 1", "language": "python", "must_contain": ["def", "yield", "while"]}
+{"request": "Write a Python generator function that yields fixed-size chunks from an iterable", "language": "python", "must_contain": ["def", "yield", "range"]}
+{"request": "Write a Python context manager class that acquires and releases a threading lock via __enter__ and __exit__", "language": "python", "must_contain": ["class", "def __enter__", "def __exit__"]}
+{"request": "Write a Python context manager using contextlib that opens a file and yields it, closing afterwards", "language": "python", "must_contain": ["import", "yield", "with"]}
+{"request": "Define a Python class LinkedList with an append method and an __iter__ dunder that yields values", "language": "python", "must_contain": ["class", "def append", "def __iter__", "yield"]}
+{"request": "Define a Python class Temperature with a celsius property using the @property decorator", "language": "python", "must_contain": ["class", "@property", "def"]}
+{"request": "Write a Python dataclass named Rectangle with width and height fields and an area method", "language": "python", "must_contain": ["import", "@dataclass", "def area"]}
+{"request": "Write a Python dataclass named Employee with a name field and a salary field with a default of 0", "language": "python", "must_contain": ["import", "@dataclass", "class"]}
+{"request": "Write a Python function that opens a file, raising FileNotFoundError handling, and returns its contents using try except", "language": "python", "must_contain": ["def", "try", "except", "open"]}
+{"request": "Write a Python function that defines a custom exception class and raises it when input is empty", "language": "python", "must_contain": ["class", "raise", "def"]}
+{"request": "Write a Python function that retries a block up to three times, catching exceptions with try except and raising on the last attempt", "language": "python", "must_contain": ["def", "try", "except", "raise"]}
+{"request": "Write a Python function that returns a flattened list of all characters from a list of strings using a nested list comprehension", "language": "python", "must_contain": ["def", "for", "return"]}
+{"request": "Write a Python function that builds a set of squares of numbers from 1 to n using a set comprehension", "language": "python", "must_contain": ["def", "for", "return"]}
+{"request": "Write a Python function that sorts a list of words case-insensitively using sorted with a key", "language": "python", "must_contain": ["def", "sorted", "key", "return"]}
+{"request": "Write a Python function that returns the top k largest numbers from a list using sorted with reverse", "language": "python", "must_contain": ["def", "sorted", "reverse", "return"]}
+{"request": "Write a Python function using re to validate that a string is a well-formed IPv4 address", "language": "python", "must_contain": ["import", "re", "def"]}
+{"request": "Write a Python function using the re module to find all hashtags in a tweet string", "language": "python", "must_contain": ["import", "re", "def", "return"]}
+{"request": "Write an async Python function that runs a coroutine with a timeout using asyncio.wait_for", "language": "python", "must_contain": ["import", "async", "await", "wait_for"]}
+{"request": "Write an async Python generator that yields integers from 0 to n with await asyncio.sleep between them", "language": "python", "must_contain": ["async", "yield", "await"]}
+{"request": "Write a Python function with full type hints that takes a dict mapping str to int and returns the sum of values as an int", "language": "python", "must_contain": ["def", "->", "int", "return"]}
+{"request": "Write a Python function with type hints returning a list of str from a tuple of ints, using List annotation", "language": "python", "must_contain": ["def", "->", "return"]}
+{"request": "Write a Python function that reads a CSV file using the csv module and returns a list of rows, using with open", "language": "python", "must_contain": ["import", "csv", "with", "open"]}
+{"request": "Write a Python function that reads a JSON file and returns the parsed object using the json module and with open", "language": "python", "must_contain": ["import", "json", "with", "open"]}
+{"request": "Write a Python function that counts the frequency of each character in a string using collections.defaultdict", "language": "python", "must_contain": ["import", "defaultdict", "def", "return"]}
+{"request": "Write a Python function that returns the n most common words in a text using collections.Counter most_common", "language": "python", "must_contain": ["import", "Counter", "most_common", "return"]}
+{"request": "Write a Python function that produces the cartesian product of two lists using itertools.product", "language": "python", "must_contain": ["import", "product", "def", "return"]}
+{"request": "Write a Python function implementing the sliding window technique to find the maximum sum of any subarray of length k", "language": "python", "must_contain": ["def", "for", "return"]}
+{"request": "Write a Python function that uses a two-pointer approach to reverse a list in place and returns it", "language": "python", "must_contain": ["def", "while", "return"]}
+{"request": "Write a Python function that solves the coin change problem with dynamic programming and returns the minimum number of coins", "language": "python", "must_contain": ["def", "for", "return"]}
+{"request": "Write a Python function that performs insertion sort on a list and returns the sorted list", "language": "python", "must_contain": ["def", "for", "return"]}
+{"request": "Write a Python function that checks whether two strings are anagrams of each other", "language": "python", "must_contain": ["def", "anagram", "return"]}

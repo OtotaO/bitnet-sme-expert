@@ -58,14 +58,19 @@ leverage now is **credibility and distribution, not more features**:
 
 Ordered by leverage. Each is a checkable outcome, not a vibe.
 
-1. **Trustworthy eval.** Holdouts ≥ 50 items/domain; eval runs deterministic
-   (`temperature=0` + fixed seed); report a Wilson lower bound, gate on it.
-   *Done when:* re-running eval twice yields the same pass/fail and a CI is
-   reported alongside each score.
-2. **A real optimizer win, recorded.** At least one committed receipt with a
-   positive held-out delta from MIPROv2/GEPA on a domain with headroom.
-   *Done when:* `eval/receipts/<domain>-<optimizer>.json` shows delta > 0 on a
-   ≥50-item holdout, reproducible across ≥3 seeds.
+1. **Trustworthy eval.** *(Mostly done.)* Holdouts are now 50 items/domain (150
+   total) and eval is pinned to `temperature=0` for reproducible scores. On the
+   harder set math fell to 0.62 (from 0.73 on the easy 15), so the gate now
+   bites. **Remaining:** report a Wilson lower bound and gate on it rather than
+   the point estimate; add a fixed sampling seed; and replace the lenient
+   substring metrics for code/general (they still saturate at 1.00) with
+   behavioral checks. *Done when:* CI reports a CI/lower-bound per score and the
+   code/general metrics can distinguish a good model from a mediocre one.
+2. **A real optimizer win, recorded.** *(Done — first instance.)*
+   `eval/receipts/math-miprov2.json` records MIPROv2-light lifting math from 0.62
+   to 0.80 (**+0.18**) on the 50-item holdout at temp 0. **Remaining:** confirm
+   stability across ≥3 seeds and extend to other domains once their metrics have
+   headroom (code/general still saturate).
 3. **Close the feedback loop.** Persist `/feedback` with a `query_id`
    correlation so the signal can feed future optimization. *Done when:*
    feedback is stored and queryable, not just logged.
@@ -107,8 +112,14 @@ overrides; a pre-merge eval gate scored on a committed holdout; committed
 receipts (incl. a negative one); an opt-in, default-deny code-execution sandbox
 (Deno/Pyodide); production fail-closed config validation; green CI.
 
-Known limitations, tracked as the goals above: small (15-item) holdouts;
-non-deterministic eval by default; the costly endpoints aren't rate-limited;
-feedback is logged but not persisted; a few optional features (litellm fallback
-chains, MLflow optimizer-run tracking) are reserved/designed-for rather than
-wired. These are roadmap, not secrets — the docs say so where each appears.
+Recently hardened: holdouts grown to 50/domain (150 total) and eval pinned to
+`temperature=0`; `/query` and `/collaborate` are now rate-limited; the math
+fast-path is exact and its sympy tools are bounded against DoS; ~690 lines of
+dead code removed.
+
+Known limitations, tracked as the goals above and in the audit follow-ups issue:
+code/general eval metrics are lenient substring proxies (saturate at 1.00); no
+Wilson-bound gating yet; feedback is logged but not persisted; a few optional
+features (litellm fallback chains, MLflow optimizer-run tracking) are
+reserved/designed-for rather than wired. These are roadmap, not secrets — the
+docs say so where each appears.
