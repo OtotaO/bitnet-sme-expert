@@ -40,8 +40,8 @@ load_dotenv()
 configure_logging(level=getattr(logging, settings.LOG_LEVEL.value, logging.INFO))
 logger = logging.getLogger(__name__)
 
-# DB bootstrap. Async migrations live in Alembic; the engine here covers
-# bootstrap for dev / test where Alembic hasn't been run.
+# DB bootstrap. There is no migration tool wired in yet, so this create_all is
+# the schema source for dev / test; add Alembic before relying on it in prod.
 Base.metadata.create_all(bind=engine)
 init_db()
 

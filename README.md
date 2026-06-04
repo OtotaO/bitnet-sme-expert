@@ -28,9 +28,9 @@ optimization.
 | Code | Pattern matching + template strings | `dspy.ChainOfThought(GenerateCode)` |
 | General | Random pick from canned responses | `dspy.ChainOfThought(AnswerGeneralQuestion)` |
 | Routing | Hardcoded keyword `if/elif` | `RouterProgram` (`dspy.ChainOfThought`) — optimizable |
-| Multi-provider | Three SDKs imported, none called | `dspy.LM` over LiteLLM, per-role fallback chains |
+| Multi-provider | Three SDKs imported, none called | `dspy.LM` over LiteLLM, per-role model selection |
 | Optimization | n/a | `MIPROv2` / `GEPA` via `scripts/optimize.py`, persisted to `compiled/` |
-| Observability | structlog + Prometheus | + `mlflow.dspy.autolog()` (OTel traces, optimizer runs) |
+| Observability | structlog + Prometheus | + `mlflow.dspy.autolog()` (OTel traces of module calls) |
 | Package mgmt | `requirements.txt` + `pyproject.toml` (drift) | `uv` + single `pyproject.toml` + `uv.lock` |
 | Python | 3.9+ | 3.12+ |
 | Pydantic | mixed v1/v2 | v2 throughout |
@@ -59,7 +59,15 @@ graph TB
 
 ## Quickstart
 
+> **Naming:** the GitHub repository is `bitnet-sme-expert` (a historical name from
+> the v2 era); the Python package, CLI, and import path are all `dspy-sme-expert`
+> / `dspy_sme`. Same project — the repo just wasn't renamed.
+
 ```bash
+# 0. Clone.
+git clone https://github.com/OtotaO/bitnet-sme-expert.git
+cd bitnet-sme-expert
+
 # 1. Get uv if you don't already have it.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
@@ -175,9 +183,13 @@ of its own until `make bitnet-demo` produces one.)
 ## Observability
 
 Set `MLFLOW_TRACKING_URI` (or run `docker compose up mlflow`) to enable
-`mlflow.dspy.autolog()`. Every module call produces an OpenTelemetry span;
-every optimizer run is logged as an MLflow run with the baseline and
-optimized scores, so you can A/B compiled artifacts in the UI.
+`mlflow.dspy.autolog()`. Every module call at serve/eval time produces an
+OpenTelemetry span you can inspect in the MLflow UI.
+
+Optimizer runs are **not** sent to MLflow today (`scripts/optimize.py` runs with
+autolog disabled); the baseline-vs-compiled scores are instead captured as
+committed receipts under `eval/receipts/` (see "Eval gate & receipts" above).
+Wiring optimizer runs into MLflow for in-UI A/B is a tracked future enhancement.
 
 ## API
 
@@ -188,7 +200,12 @@ optimized scores, so you can A/B compiled artifacts in the UI.
 | GET  | `/api/v1/experts` | List registered experts |
 | POST | `/api/v1/query` | Route a question (auto or `domain=...`) |
 | POST | `/api/v1/collaborate` | Fan out to several experts in parallel |
-| POST | `/api/v1/feedback` | Submit feedback on a previous query |
+| POST | `/api/v1/feedback` | Submit feedback on a previous query (logged, not yet persisted) |
+| POST | `/api/v1/fine-tune` | Kick off a fine-tuning job (experimental; admin-gated) |
+| GET  | `/api/v1/training/status/{job_id}` | Fine-tuning job status (experimental) |
+| GET  | `/api/v1/training/jobs` | List fine-tuning jobs (experimental) |
+| POST | `/cache/clear` | Clear the response cache (admin-gated) |
+| GET  | `/cache/stats` | Response-cache statistics |
 
 Interactive docs at `/docs` (Swagger) and `/redoc`.
 
@@ -207,21 +224,35 @@ app/
 │   ├── math_module.py
 │   ├── code_module.py
 │   └── general_module.py
-├── experts/                 Thin wrappers exposing the API contract
-├── services/expert_service.py
-├── api/endpoints/           FastAPI routes
+├── experts/                 Thin wrappers exposing the API contract (see experts/README.md)
+├── services/                ExpertService (routing, collaborate, fine-tuning)
+├── api/endpoints/           FastAPI routes (core + fine_tuning)
 ├── middleware/              CORS, auth (PyJWT), logging, errors
 ├── schemas/                 Pydantic v2 request/response models
+├── models/                  Abstract expert base + ORM models
+├── retrieval/               Optional hybrid RAG (LanceDB + BGE), [rag] extra
+├── core/                    Exceptions and shared internals
+├── database.py              Engine + session bootstrap
 └── ...
 scripts/
-├── optimize.py              MIPROv2 / GEPA compile pipeline
+├── optimize.py              MIPROv2 / GEPA compile pipeline (writes eval/receipts/)
+├── run_eval.py              Holdout eval runner (the CI gate)
 ├── bitnet_setup.sh          Build bitnet.cpp + pull the model
-└── bitnet_serve.sh          Run the llama-server
+├── bitnet_serve.sh          Run the llama-server
+└── bitnet_demo.sh           Measure local tok/s (writes a receipt)
 tests/
 ├── test_experts.py          Wiring smoke tests (no LM)
-└── eval/                    dspy.Evaluate gold sets + metrics (RUN_EVAL=1)
+└── eval/                    loader (train/holdout split) + gold sets + metrics (RUN_EVAL=1)
+eval/receipts/               Committed optimizer/throughput receipts
 compiled/                    Optimized programs land here (gitignored)
 ```
+
+## Docs
+
+- [`docs/strategy.md`](docs/strategy.md) — strategy, goals, outcomes, and honest current state.
+- [`docs/specialization.md`](docs/specialization.md) — the BitNet + DSPy specialization playbook.
+- [`app/experts/README.md`](app/experts/README.md) — how to add a new domain expert end to end.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev loop, the eval/optimize cycle, and the receipts policy.
 
 ## Development
 

@@ -1,4 +1,4 @@
-"""DSPy LM configuration with LiteLLM routing, fallback chains, and optional MLflow tracing.
+"""DSPy LM configuration with per-role LiteLLM routing and optional MLflow tracing.
 
 Single source of truth for which model serves which task. Providers are addressed by
 LiteLLM strings (``"openai/gpt-5"``, ``"anthropic/claude-4.5-sonnet"``,
@@ -25,14 +25,18 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class LMSpec:
-    """A single LM specification with optional fallbacks."""
+    """A single per-role LM specification.
+
+    ``fallbacks`` is reserved for a future litellm fallback-chain wiring; it is
+    not consumed by :meth:`build` today.
+    """
 
     model: str
     api_base: str | None = None
     api_key_env: str | None = None
     max_tokens: int = 1024
     temperature: float = 0.7
-    fallbacks: tuple[str, ...] = ()
+    fallbacks: tuple[str, ...] = ()  # reserved; not yet wired into build()
 
     def build(self) -> dspy.LM:
         kwargs: dict[str, object] = {
@@ -95,8 +99,10 @@ def configure_dspy(enable_mlflow: bool | None = None) -> None:
     """Configure global DSPy defaults and optional MLflow autolog.
 
     Called once at app startup. MLflow autolog gives free OpenTelemetry-based
-    tracing of every module call, plus optimizer-run tracking when GEPA / MIPROv2
-    are used. Toggled by ``MLFLOW_TRACKING_URI`` being set, or the explicit arg.
+    tracing of every module call. Toggled by ``MLFLOW_TRACKING_URI`` being set,
+    or the explicit arg. (``scripts/optimize.py`` runs with autolog disabled and
+    records optimizer results as committed receipts under ``eval/receipts/``
+    instead; sending optimizer runs to MLflow is a future enhancement.)
     """
     dspy.configure(lm=get_lm("general"), async_max_workers=settings.MAX_CONCURRENT_REQUESTS)
 

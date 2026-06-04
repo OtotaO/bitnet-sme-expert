@@ -2,7 +2,9 @@
 
 Committed proof artifacts from the optimizer. Each `scripts/optimize.py` run
 writes `<domain>-<optimizer>.json` here with the **held-out** baseline and
-compiled scores, the delta, the LM used, and the split sizes — e.g.
+compiled scores, the delta, the LM used, and the split sizes. The first
+committed receipt (`math-miprov2.json`, verbatim) — a genuine **negative**
+result, kept on purpose:
 
 ```json
 {
@@ -10,9 +12,9 @@ compiled scores, the delta, the LM used, and the split sizes — e.g.
   "optimizer": "miprov2",
   "lm": "openai/gpt-4o-mini",
   "split": "train->holdout",
-  "baseline": 0.60,
-  "optimized": 0.73,
-  "delta": 0.13,
+  "baseline": 0.7333,
+  "optimized": 0.6,
+  "delta": -0.13329999999999997,
   "n_train": 45,
   "n_holdout": 15
 }

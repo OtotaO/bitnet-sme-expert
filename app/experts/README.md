@@ -1,89 +1,73 @@
-# Expert Implementations
+# Experts
 
-This directory contains the implementation of various expert modules for the BitNet SME system. Each expert is designed to handle a specific domain of knowledge or type of query.
+Thin wrappers that adapt a `dspy.Module` (the actual model code, in
+`app/dspy_modules/`) to the service's API contract. An expert holds a program,
+runs it under a domain-specific LM via `dspy.context(...)`, optionally loads a
+compiled/optimized version from `compiled/<domain>.json`, and converts the
+`dspy.Prediction` into the canonical `ExpertOutput` envelope.
 
-## Available Experts
+## Bundled experts
 
-### 1. Math Expert (`math_expert.py`)
-- **Domain**: Mathematical problem solving and analysis
-- **Capabilities**:
-  - Solve equations and expressions
-  - Perform calculus operations (derivatives, integrals, limits)
-  - Simplify and factor expressions
-  - Calculate series expansions
-  - Solve linear algebra problems
-  - Handle statistical calculations
-  - Generate step-by-step solutions
+| Expert | File | Domain | LM role | Program (`app/dspy_modules/`) |
+| --- | --- | --- | --- | --- |
+| `MathExpert` | `math_expert.py` | `MATH` | `math` | `MathProgram` — `dspy.ReAct` over sympy tools + deterministic fast-path |
+| `CodeExpert` | `code_expert.py` | `CODE` | `code` | `CodeProgram` — `dspy.ChainOfThought` (opt-in sandboxed execution) |
+| `GeneralExpert` | `general_expert.py` | `GENERAL` | `general` | `GeneralProgram` — `dspy.ChainOfThought` (opt-in hybrid RAG) |
 
-### 2. Code Expert (`code_expert.py`)
-- **Domain**: Programming and software development
-- **Capabilities**:
-  - Generate code in multiple programming languages
-  - Explain and document code
-  - Debug and fix issues
-  - Optimize code for performance
-  - Refactor code for better quality
-  - Write unit tests
-  - Convert code between languages
-  - Provide programming best practices
+## Base class
 
-### 3. General Expert (`general_expert.py`)
-- **Domain**: General knowledge and information
-- **Capabilities**:
-  - Answer factual questions
-  - Provide explanations on various topics
-  - Handle general knowledge queries
-  - Offer insights and summaries
-  - Respond to conversational prompts
+`base_expert.py` defines **`DSPyExpert`** (subclass of `app/models/expert.py`'s
+abstract `BaseExpert`). It owns: program construction, compiled-artifact loading
+(with fall-back to the uncompiled program on load failure), per-call LM
+selection, timing/metadata stamping, and `ExpertOutput` validation. Subclasses
+fill in a small contract.
 
-## Base Implementation
+## Add a new domain expert (end to end)
 
-The `base_expert.py` file contains the `BaseExpertImpl` class that all expert implementations inherit from. It provides common functionality including:
+1. **Add the domain** to `ExpertDomain` in `app/schemas/base.py`.
+2. **Write the signature + program** in `app/dspy_modules/` — a `dspy.Signature`
+   describing inputs/outputs and a `dspy.Module` (e.g. `dspy.ChainOfThought` or
+   `dspy.ReAct`). Export it from `app/dspy_modules/__init__.py`.
+3. **Create the expert** here, subclassing `DSPyExpert`:
 
-- Configuration management
-- Logging
-- Error handling
-- Response formatting
-- Common utility methods
+   ```python
+   from ..dspy_modules import MyProgram
+   from ..schemas.base import ExpertDomain
+   from .base_expert import DSPyExpert
 
-## Adding a New Expert
+   class MyExpert(DSPyExpert):
+       DOMAIN = ExpertDomain.MY_DOMAIN
+       LM_ROLE = "my_domain"          # used by app/llm.py:get_lm()
 
-To add a new expert:
+       def _build_program(self) -> dspy.Module:
+           return MyProgram()
 
-1. Create a new Python file in this directory
-2. Create a class that inherits from `BaseExpertImpl`
-3. Implement the required methods, especially `_generate_impl`
-4. Define the `DOMAIN` class variable with the appropriate `ExpertDomain`
-5. Add any domain-specific methods and logic
-6. Update this README to document the new expert
+       # Optional overrides:
+       # _format_prediction(self, prediction) -> {"response", "metadata", ...}
+       # _invoke(self, input_text, context, **kwargs) -> dspy.Prediction
+       #   (default calls self.program(question=input_text))
+   ```
 
-## Usage Example
+4. **Add an LM spec** for the new role in `app/llm.py` (`_DEFAULT_SPECS`), or rely
+   on a `DSPY_LM_<ROLE>` env override.
+5. **Register it** in `app/main.py:_register_experts(...)` via
+   `service.register_expert_class(domain=..., expert_class=..., config=...)`.
+6. **Add a gold split + metric** for the eval gate: a
+   `tests/eval/datasets/<domain>.train.jsonl` / `.holdout.jsonl` pair, the input
+   fields in `tests/eval/loader.py:DOMAIN_INPUTS`, a metric in
+   `tests/eval/test_eval.py`, and a threshold in
+   `scripts/run_eval.py:DEFAULT_THRESHOLDS`.
+
+## Usage
+
+Experts are normally reached through the API (`POST /api/v1/query`) or the
+`ExpertService`. Direct use:
 
 ```python
-from .math_expert import MathExpert
-
-# Initialize the expert
 expert = MathExpert()
-
-# Generate a response
-response = await expert.generate(
-    "What is the derivative of x^2?",
-    context={"user_id": "123"}
-)
-
-print(response["response"])
+result = await expert.generate("What is the derivative of x^2?", context={})
+print(result["response"])   # ExpertOutput-shaped dict
 ```
 
-## Dependencies
-
-- Python 3.8+
-- sympy (for MathExpert)
-- Other dependencies as specified in the project's requirements.txt
-
-## Testing
-
-Run the test suite to verify all experts are functioning correctly:
-
-```bash
-pytest tests/experts/
-```
+See `docs/specialization.md` for the optimization loop and `eval/receipts/` for
+how compiled-program wins (or non-wins) are recorded.
