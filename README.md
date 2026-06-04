@@ -289,6 +289,7 @@ compiled/                    Optimized programs land here (gitignored)
 
 ## Docs
 
+- [`AGENTS.md`](AGENTS.md) — orientation for AI/agent sessions: invariants, dev loop, where open work is tracked. Read this first if you're picking up the project.
 - [`docs/strategy.md`](docs/strategy.md) — strategy, goals, outcomes, and honest current state.
 - [`docs/specialization.md`](docs/specialization.md) — the BitNet + DSPy specialization playbook.
 - [`app/experts/README.md`](app/experts/README.md) — how to add a new domain expert end to end.
