@@ -24,6 +24,7 @@ receipts**, not any single model.
 | How to add a new domain expert end-to-end | `app/experts/README.md` |
 | The eval gate, split, and receipts policy | `README.md` (“Eval gate & receipts”), `eval/receipts/README.md` |
 | BitNet + DSPy specialization playbook | `docs/specialization.md` |
+| Deployment substrates (HF Providers, Modal vLLM, Modal SFT, local BitNet) | `docs/deployment-modal-hf.md` |
 | Open follow-up work (the live TODO) | **GitHub issue #19** |
 
 ## Non-negotiable invariants (don't violate these)
@@ -67,8 +68,10 @@ DSPy is pinned `>=3.2.1` (current stable; 3.3 is beta — don't adopt in CI).
 
 Done and on `main`: the eval gate (50-item holdouts, temp-0, Wilson CIs); a real
 +0.18 MIPROv2 math win; per-route auth + JWT hardening; persisted feedback;
-MLflow optimizer logging; rate-limited paid endpoints; an MCP server; and an
-execution-based code-eval harness (foundation).
+MLflow optimizer logging; rate-limited paid endpoints; an MCP server; an
+execution-based code-eval harness (foundation); and a substrate-agnostic
+deployment story (HF Inference Providers / Modal vLLM / Modal SFT / local
+BitNet — all the same `openai/`-style provider slot; see `docs/deployment-modal-hf.md`).
 
 Open (tracked in **issue #19**), in rough priority:
 - Flip the **code gate onto execution grading** (`tests/eval/exec.py`) — needs an
@@ -90,6 +93,7 @@ app/auth.py            per-route auth (require_role) app/limiter.py     shared S
 app/llm.py             per-role LM routing (LiteLLM) app/mcp_server.py  MCP server (dspy-sme-mcp)
 app/dspy_modules/      signatures + Modules          app/experts/       API-contract wrappers
 scripts/run_eval.py    the CI eval gate (holdout)    scripts/optimize.py MIPROv2/GEPA + receipts
+scripts/bitnet_*.sh    local 1-bit serve/demo        scripts/modal_*.py  Modal vLLM serve + Unsloth SFT
 tests/eval/loader.py   committed train/holdout split tests/eval/exec.py  execution-based code grader
 eval/receipts/         committed optimizer receipts
 ```
