@@ -1,0 +1,50 @@
+{"request": "Write a Python function that returns the factorial of n", "language": "python", "must_contain": ["def", "factorial", "return"]}
+{"request": "Write a Python function to check if a number is prime", "language": "python", "must_contain": ["def", "prime", "return"]}
+{"request": "Write a fibonacci generator in Python", "language": "python", "must_contain": ["def", "fib", "yield"]}
+{"request": "Write a Python function to reverse a string", "language": "python", "must_contain": ["def", "reverse", "return"]}
+{"request": "Write a Python function to compute the GCD of two integers", "language": "python", "must_contain": ["def", "gcd", "return"]}
+{"request": "Write a Python implementation of binary search over a sorted list", "language": "python", "must_contain": ["def", "binary_search", "return"]}
+{"request": "Write a Python function that flattens a nested list one level deep", "language": "python", "must_contain": ["def", "flatten", "return"]}
+{"request": "Write a Python decorator that measures and prints a function's runtime", "language": "python", "must_contain": ["def", "wrapper", "@", "time"]}
+{"request": "Write a Python decorator named retry that retries a function up to n times on exception", "language": "python", "must_contain": ["def", "retry", "@", "except"]}
+{"request": "Write a memoization decorator in Python that caches function results in a dict", "language": "python", "must_contain": ["def", "wrapper", "@"]}
+{"request": "Write a Python generator that yields all prime numbers up to n", "language": "python", "must_contain": ["def", "yield", "return"]}
+{"request": "Write a Python generator function that yields successive sliding windows of size k over a list", "language": "python", "must_contain": ["def", "yield", "range"]}
+{"request": "Write a Python context manager class with __enter__ and __exit__ that times a code block", "language": "python", "must_contain": ["class", "def __enter__", "def __exit__"]}
+{"request": "Write a Python context manager using contextlib that temporarily changes the working directory", "language": "python", "must_contain": ["import", "yield", "with"]}
+{"request": "Define a Python class Vector with __init__, __add__, and __repr__ dunder methods", "language": "python", "must_contain": ["class", "def __init__", "def __add__", "def __repr__"]}
+{"request": "Define a Python class Stack with push and pop methods and a __len__ dunder", "language": "python", "must_contain": ["class", "def push", "def __len__"]}
+{"request": "Write a Python dataclass named Point with x and y float fields", "language": "python", "must_contain": ["import", "@dataclass", "class"]}
+{"request": "Write a Python function that safely parses an int from a string, raising ValueError on failure", "language": "python", "must_contain": ["def", "try", "except", "raise"]}
+{"request": "Write a Python function that validates an age argument and raises ValueError if it is negative", "language": "python", "must_contain": ["def", "raise", "ValueError"]}
+{"request": "Write a Python function that returns the squares of even numbers from 0 to n using a list comprehension", "language": "python", "must_contain": ["def", "for", "return"]}
+{"request": "Write a Python function that builds a dict mapping each word in a list to its length using a dict comprehension", "language": "python", "must_contain": ["def", "for", "return"]}
+{"request": "Write a Python function that sorts a list of tuples by the second element using sorted with a key", "language": "python", "must_contain": ["def", "sorted", "key", "return"]}
+{"request": "Write a Python function that sorts a list of strings by length descending using sorted", "language": "python", "must_contain": ["def", "sorted", "key", "reverse"]}
+{"request": "Write a Python function that uses the re module to extract all email addresses from text", "language": "python", "must_contain": ["import", "re", "def", "return"]}
+{"request": "Write a Python function using re to check whether a string is a valid phone number", "language": "python", "must_contain": ["import", "re", "def"]}
+{"request": "Write an async Python function that fetches a URL using aiohttp and returns the response text", "language": "python", "must_contain": ["async", "def", "await", "return"]}
+{"request": "Write an async Python function that sleeps for n seconds using asyncio and returns done", "language": "python", "must_contain": ["import", "async", "await", "return"]}
+{"request": "Write a Python function with full type hints that adds two integers and returns an int", "language": "python", "must_contain": ["def", "int", "->", "return"]}
+{"request": "Write a Python function that reads a text file and returns the number of lines, using a with statement", "language": "python", "must_contain": ["def", "open", "with", "return"]}
+{"request": "Write a Python function that writes a list of strings to a file, one per line, using with open", "language": "python", "must_contain": ["def", "open", "with", "write"]}
+{"request": "Write a Python function that counts word frequencies in a string using collections.Counter", "language": "python", "must_contain": ["import", "Counter", "def", "return"]}
+{"request": "Write a Python function that groups a list of (key, value) pairs into a dict of lists using collections.defaultdict", "language": "python", "must_contain": ["import", "defaultdict", "def", "return"]}
+{"request": "Write a Python function that generates all pairwise combinations of a list using itertools", "language": "python", "must_contain": ["import", "itertools", "def", "return"]}
+{"request": "Write a Python function implementing the two-pointer technique to check if a list has two numbers summing to a target", "language": "python", "must_contain": ["def", "while", "return"]}
+{"request": "Write a Python function that solves the 0/1 knapsack problem with dynamic programming", "language": "python", "must_contain": ["def", "knapsack", "for", "return"]}
+{"request": "Write a Python function that computes the length of the longest common subsequence of two strings with dynamic programming", "language": "python", "must_contain": ["def", "for", "return"]}
+{"request": "Write a Python function that performs merge sort on a list and returns the sorted list", "language": "python", "must_contain": ["def", "merge", "return"]}
+{"request": "Write a Python function that checks whether a string is a palindrome, ignoring case and spaces", "language": "python", "must_contain": ["def", "palindrome", "return"]}
+{"request": "Write a recursive Python function that computes the sum of a nested list of integers of arbitrary depth", "language": "python", "must_contain": ["def", "isinstance", "return"]}
+{"request": "Write a Python lambda assigned to a variable that squares its input", "language": "python", "must_contain": ["lambda", "="]}
+{"request": "Write a recursive Python function that computes the nth term of the Fibonacci sequence", "language": "python", "must_contain": ["def", "return"]}
+{"request": "Write a Python function that performs a breadth-first search over a graph given as an adjacency dict and returns visited nodes in order", "language": "python", "must_contain": ["def", "bfs", "return"]}
+{"request": "Write a Python function that performs a depth-first traversal of a graph recursively and returns the visited set", "language": "python", "must_contain": ["def", "dfs", "return"]}
+{"request": "Write a Python function using itertools.groupby to group consecutive equal elements of a list into sublists", "language": "python", "must_contain": ["import", "groupby", "def", "return"]}
+{"request": "Write a Python function that uses functools.reduce to multiply all numbers in a list together", "language": "python", "must_contain": ["import", "reduce", "def", "return"]}
+{"request": "Write a Python generator that yields the running cumulative sum of an iterable of numbers", "language": "python", "must_contain": ["def", "yield", "for"]}
+{"request": "Write a Python function with type hints that maps an optional string to its length and returns an int, using Optional", "language": "python", "must_contain": ["import", "->", "def", "return"]}
+{"request": "Write a Python function that uses re to split a string on any run of punctuation characters and returns the tokens", "language": "python", "must_contain": ["import", "re", "def", "return"]}
+{"request": "Write a Python contextmanager using contextlib that suppresses a given exception type around a block", "language": "python", "must_contain": ["import", "yield", "with"]}
+{"request": "Write a Python function that computes the edit distance between two strings using dynamic programming", "language": "python", "must_contain": ["def", "for", "return"]}

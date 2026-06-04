@@ -72,7 +72,9 @@ Modal prints a URL. Wire it up:
 ```bash
 export DSPY_LM_MATH="openai/Qwen/Qwen2.5-7B-Instruct"
 export DSPY_LM_MATH_API_BASE="https://<workspace>--dspy-sme-vllm-serve.modal.run/v1"
-export DSPY_LM_MATH_API_KEY="<the API_KEY you set>"
+# API_KEY_ENV names the env var holding the key (app/llm.py reads it indirectly):
+export DSPY_LM_MATH_API_KEY_ENV="MODAL_VLLM_KEY"
+export MODAL_VLLM_KEY="<the API_KEY you set>"
 make dev
 ```
 
@@ -116,9 +118,10 @@ envelope.
 ```bash
 make bitnet-setup       # one-time: build bitnet.cpp, download weights
 make bitnet-serve       # llama-server on :8080
-export DSPY_LM_MATH="openai/bitnet-b1.58-2B-4T"
+export DSPY_LM_MATH="openai/bitnet"
 export DSPY_LM_MATH_API_BASE="http://localhost:8080/v1"
-export DSPY_LM_MATH_API_KEY="local"   # bitnet.cpp ignores the value
+export DSPY_LM_MATH_API_KEY_ENV="BITNET_DUMMY_KEY"   # names the var below
+export BITNET_DUMMY_KEY="local"                      # bitnet.cpp ignores the value
 make dev
 ```
 
@@ -134,14 +137,16 @@ A realistic hybrid for a team with HF + Modal credits:
 export DSPY_LM_ROUTER="huggingface/auto/meta-llama/Llama-3.2-3B-Instruct:fastest"
 
 # Math: BitNet local with sympy fast-path. Bounded vocabulary; specialization wins.
-export DSPY_LM_MATH="openai/bitnet-b1.58-2B-4T"
+export DSPY_LM_MATH="openai/bitnet"
 export DSPY_LM_MATH_API_BASE="http://localhost:8080/v1"
-export DSPY_LM_MATH_API_KEY="local"
+export DSPY_LM_MATH_API_KEY_ENV="BITNET_DUMMY_KEY"
+export BITNET_DUMMY_KEY="local"
 
 # Code: fine-tuned Qwen2.5-Coder on Modal. Narrow domain vocabulary; SFT wins.
 export DSPY_LM_CODE="openai/your-org/qwen2.5-coder-32b-domain"
 export DSPY_LM_CODE_API_BASE="https://<workspace>--dspy-sme-vllm-serve.modal.run/v1"
-export DSPY_LM_CODE_API_KEY="$YOUR_MODAL_KEY"
+export DSPY_LM_CODE_API_KEY_ENV="MODAL_VLLM_KEY"
+export MODAL_VLLM_KEY="$YOUR_MODAL_KEY"
 
 # General: frontier model. Open-ended; not a candidate for specialization.
 export DSPY_LM_GENERAL="anthropic/claude-sonnet-4-6"

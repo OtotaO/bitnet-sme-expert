@@ -1,0 +1,50 @@
+{"question": "What is the capital of France?", "must_contain": ["Paris"]}
+{"question": "Who wrote Romeo and Juliet?", "must_contain": ["Shakespeare"]}
+{"question": "What is the largest planet in our solar system?", "must_contain": ["Jupiter"]}
+{"question": "Who painted the Mona Lisa?", "must_contain": ["Leonardo", "Vinci"]}
+{"question": "What year did World War II end?", "must_contain": ["1945"]}
+{"question": "What is the chemical symbol for gold?", "must_contain": ["Au"]}
+{"question": "What is the tallest mountain in the world above sea level?", "must_contain": ["Everest"]}
+{"question": "What is the speed of light in a vacuum, in meters per second?", "must_contain": ["299"]}
+{"question": "Who developed the theory of general relativity?", "must_contain": ["Einstein"]}
+{"question": "What is the smallest country in the world by area?", "must_contain": ["Vatican"]}
+{"question": "What gas do plants absorb from the atmosphere during photosynthesis?", "must_contain": ["carbon dioxide", "co2"]}
+{"question": "What is the chemical symbol for sodium?", "must_contain": ["Na"]}
+{"question": "What is the smallest prime number?", "must_contain": ["2", "two"]}
+{"question": "What is the longest river in the world (by most common reckoning)?", "must_contain": ["Nile", "Amazon"]}
+{"question": "Which planet is known as the Red Planet?", "must_contain": ["Mars"]}
+{"question": "What is the powerhouse of the cell, the organelle that produces most of its ATP?", "must_contain": ["mitochond"]}
+{"question": "Who wrote the play Hamlet?", "must_contain": ["Shakespeare"]}
+{"question": "What is the hardest known naturally occurring material?", "must_contain": ["diamond"]}
+{"question": "In what year did the first human land on the Moon?", "must_contain": ["1969"]}
+{"question": "What is the capital of Australia?", "must_contain": ["Canberra"]}
+{"question": "What is the chemical formula for water?", "must_contain": ["H2O", "h2o"]}
+{"question": "Who composed the Ninth Symphony that includes the 'Ode to Joy'?", "must_contain": ["Beethoven"]}
+{"question": "What is the largest ocean on Earth?", "must_contain": ["Pacific"]}
+{"question": "How many bones are in the adult human body?", "must_contain": ["206"]}
+{"question": "What is the chemical symbol for iron?", "must_contain": ["Fe"]}
+{"question": "Who wrote the novel Pride and Prejudice?", "must_contain": ["Austen"]}
+{"question": "What is the freezing point of water in degrees Celsius?", "must_contain": ["0", "zero"]}
+{"question": "What is the largest country in the world by land area?", "must_contain": ["Russia"]}
+{"question": "Who painted the ceiling of the Sistine Chapel?", "must_contain": ["Michelangelo"]}
+{"question": "What is the most abundant gas in Earth's atmosphere?", "must_contain": ["nitrogen", "n2"]}
+{"question": "What is the square root of 144?", "must_contain": ["12", "twelve"]}
+{"question": "What is the capital of Japan?", "must_contain": ["Tokyo"]}
+{"question": "Who developed the theory of evolution by natural selection?", "must_contain": ["Darwin"]}
+{"question": "What element, with chemical symbol K, is essential for nerve function in the body?", "must_contain": ["potassium"]}
+{"question": "What is the value of pi rounded to two decimal places?", "must_contain": ["3.14"]}
+{"question": "Which sea separates Europe from Africa to the south of Spain and Italy?", "must_contain": ["Mediterranean"]}
+{"question": "Who wrote the epic poem the Odyssey?", "must_contain": ["Homer"]}
+{"question": "What is the boiling point of water at sea level in degrees Celsius?", "must_contain": ["100", "one hundred"]}
+{"question": "What is the closest planet to the Sun?", "must_contain": ["Mercury"]}
+{"question": "What metal is liquid at room temperature?", "must_contain": ["mercury"]}
+{"question": "What chemical element, used in incandescent light bulb filaments, has the chemical symbol W?", "must_contain": ["tungsten", "wolfram"]}
+{"question": "Who wrote the dystopian novel 1984?", "must_contain": ["Orwell"]}
+{"question": "What is the largest moon of Saturn?", "must_contain": ["Titan"]}
+{"question": "In what year did the French Revolution begin?", "must_contain": ["1789"]}
+{"question": "What is the SI base unit of electric current?", "must_contain": ["ampere", "amp"]}
+{"question": "What is the largest internal organ in the human body?", "must_contain": ["liver"]}
+{"question": "Who composed the opera The Magic Flute?", "must_contain": ["Mozart"]}
+{"question": "What is the capital of Argentina?", "must_contain": ["Buenos Aires"]}
+{"question": "What is the value of 7 factorial (7!)?", "must_contain": ["5040", "5,040"]}
+{"question": "What sea is the saltiest large body of water bordering Jordan and Israel, famous for high buoyancy?", "must_contain": ["Dead Sea"]}

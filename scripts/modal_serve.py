@@ -25,7 +25,9 @@ Point DSPy at it via:
 
     export DSPY_LM_MATH=openai/Qwen/Qwen2.5-7B-Instruct
     export DSPY_LM_MATH_API_BASE=https://<workspace>--vllm-serve.modal.run/v1
-    export DSPY_LM_MATH_API_KEY=<the-API_KEY-you-set>
+    # API_KEY_ENV names the env var holding the key (app/llm.py reads it indirectly):
+    export DSPY_LM_MATH_API_KEY_ENV=MODAL_VLLM_KEY
+    export MODAL_VLLM_KEY=<the-API_KEY-you-set>
 
 The endpoint is OpenAI-compatible so it Just Works with LiteLLM and DSPy
 through the standard ``openai/<model>`` provider — no custom adapter needed.

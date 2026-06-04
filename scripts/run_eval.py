@@ -35,35 +35,34 @@ if str(REPO_ROOT) not in sys.path:
 
 from app.dspy_modules import CodeProgram, GeneralProgram, MathProgram
 from app.llm import configure_dspy
-from tests.eval.test_eval import code_metric, general_metric, math_metric
+from tests.eval.loader import load_split
+from tests.eval.test_eval import code_metric, general_metric, math_metric, to_fraction
 
 logger = logging.getLogger("eval_runner")
-DATA_DIR = REPO_ROOT / "tests" / "eval" / "datasets"
 DEFAULT_THRESHOLDS = {"math": 0.6, "code": 0.6, "general": 0.7}
 
-
-def _load_jsonl(name: str) -> list[dict]:
-    return [json.loads(line) for line in (DATA_DIR / name).read_text().splitlines() if line.strip()]
+# Programs and metrics per domain. The gold examples come from the *holdout*
+# split (see tests/eval/loader.py) — the optimizer only ever trains on `train`,
+# so scoring on `holdout` is the honest, un-overfit number we gate on.
+_PROGRAMS: dict[str, type[dspy.Module]] = {
+    "math": MathProgram,
+    "code": CodeProgram,
+    "general": GeneralProgram,
+}
+_METRICS: dict[str, Callable[..., float]] = {
+    "math": math_metric,
+    "code": code_metric,
+    "general": general_metric,
+}
 
 
 def _build(domain: str) -> tuple[dspy.Module, list[dspy.Example], Callable[..., float]]:
-    if domain == "math":
-        examples = [
-            dspy.Example(**row).with_inputs("question") for row in _load_jsonl("math.jsonl")
-        ]
-        return MathProgram(), examples, math_metric
-    if domain == "code":
-        examples = [
-            dspy.Example(**row).with_inputs("request", "language")
-            for row in _load_jsonl("code.jsonl")
-        ]
-        return CodeProgram(), examples, code_metric
-    if domain == "general":
-        examples = [
-            dspy.Example(**row).with_inputs("question") for row in _load_jsonl("general.jsonl")
-        ]
-        return GeneralProgram(), examples, general_metric
-    raise ValueError(f"unknown domain: {domain}")
+    if domain not in _PROGRAMS:
+        raise ValueError(f"unknown domain: {domain}")
+    return _PROGRAMS[domain](), load_split(domain, "holdout"), _METRICS[domain]
+
+
+_ALL_ROLES = ("router", "math", "code", "general")
 
 
 def _set_per_role_lm(domain: str, lm: str | None) -> None:
@@ -75,14 +74,50 @@ def _set_per_role_lm(domain: str, lm: str | None) -> None:
     # Inherit base_url / api_key envs from the caller if set.
 
 
+def _pin_temperature(temperature: float) -> None:
+    """Pin every role's sampling temperature for a reproducible eval.
+
+    The programs evaluate under the ambient (general-role) LM, but we set every
+    role so the result is deterministic regardless of which LM ends up serving.
+    """
+    for role in _ALL_ROLES:
+        os.environ[f"DSPY_LM_{role.upper()}_TEMPERATURE"] = str(temperature)
+
+
+def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95% Wilson score interval for a binomial pass-rate.
+
+    Used instead of the normal/Wald approximation, which severely understates
+    uncertainty at small N and near 0/1 (see Bowyer et al., ICML 2025, "Don't
+    Use the CLT in LLM Evals With Fewer Than a Few Hundred Datapoints"). At our
+    N=50 holdouts the Wald interval would look misleadingly tight. Zero new
+    dependencies — it's a closed form.
+    """
+    if n == 0:
+        return (0.0, 0.0)
+    p = successes / n
+    denom = 1 + z**2 / n
+    center = (p + z**2 / (2 * n)) / denom
+    half = (z * ((p * (1 - p) / n + z**2 / (4 * n**2)) ** 0.5)) / denom
+    return (max(0.0, center - half), min(1.0, center + half))
+
+
 def run_domain(domain: str, threshold: float, num_threads: int) -> dict[str, object]:
     program, examples, metric = _build(domain)
+    n = len(examples)
     evaluator = dspy.Evaluate(devset=examples, num_threads=num_threads, display_progress=False)
-    score = float(evaluator(program, metric=metric))
+    score = to_fraction(evaluator(program, metric=metric))
+    successes = round(score * n)  # metric is 0/1 per item, so this is exact
+    lo, hi = wilson_interval(successes, n)
     return {
         "domain": domain,
-        "n": len(examples),
+        "split": "holdout",
+        "n": n,
         "score": round(score, 4),
+        # 95% Wilson interval — reported for transparency. The gate is on the
+        # point estimate; gating on the lower bound would need larger N (the
+        # interval at N=50 is wide). See docs/strategy.md goal 1.
+        "ci95": [round(lo, 4), round(hi, 4)],
         "threshold": threshold,
         "passed": score >= threshold,
     }
@@ -114,12 +149,19 @@ def main(argv: Iterable[str] | None = None) -> int:
         default=None,
         help="Optional path to also write the full results array as JSON.",
     )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.0,
+        help="Sampling temperature pinned for a reproducible eval (default 0.0).",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     domains = ["math", "code", "general"] if args.domain == "all" else [args.domain]
     for d in domains:
         _set_per_role_lm(d, args.lm)
+    _pin_temperature(args.temperature)
     configure_dspy(enable_mlflow=bool(os.environ.get("MLFLOW_TRACKING_URI")))
 
     results: list[dict[str, object]] = []

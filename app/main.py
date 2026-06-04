@@ -2,7 +2,8 @@
 
 Wires up the lifespan-managed ``ExpertService``, configures DSPy globals (LM,
 async workers, optional MLflow autolog), and mounts the API routers behind
-standard middleware (CORS, auth, structured logging, rate limiting).
+standard middleware (CORS, structured logging) with rate limiting and per-route
+authorization dependencies (see ``app/auth.py``).
 """
 
 from __future__ import annotations
@@ -13,18 +14,21 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from app.api.endpoints import api_router
+from app.auth import require_role
+from app.bootstrap import register_experts
 from app.config import settings
 from app.database import Base, engine, init_db
+from app.limiter import limiter
 from app.llm import configure_dspy
-from app.middleware import AuthzMiddleware, LoggingMiddleware, setup_cors, setup_error_handling
+from app.middleware import LoggingMiddleware, setup_cors, setup_error_handling
+from app.models import feedback as _feedback_model  # noqa: F401 — register table for create_all
 from app.observability import configure_logging
 from app.schemas.response import (
     CacheClearResponse,
@@ -40,8 +44,8 @@ load_dotenv()
 configure_logging(level=getattr(logging, settings.LOG_LEVEL.value, logging.INFO))
 logger = logging.getLogger(__name__)
 
-# DB bootstrap. Async migrations live in Alembic; the engine here covers
-# bootstrap for dev / test where Alembic hasn't been run.
+# DB bootstrap. There is no migration tool wired in yet, so this create_all is
+# the schema source for dev / test; add Alembic before relying on it in prod.
 Base.metadata.create_all(bind=engine)
 init_db()
 
@@ -57,7 +61,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     configure_dspy()
 
     expert_service = ExpertService()
-    await _register_experts(expert_service)
+    await register_experts(expert_service)
     await expert_service.initialize()
     logger.info("app.startup.completed")
 
@@ -68,48 +72,6 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         if expert_service is not None:
             await expert_service.cleanup()
             expert_service = None
-
-
-async def _register_experts(service: ExpertService) -> None:
-    """Register all bundled experts. The actual LM per expert lives in ``app/llm.py``."""
-    from app.experts.code_expert import CodeExpert
-    from app.experts.general_expert import GeneralExpert
-    from app.experts.math_expert import MathExpert
-    from app.schemas.base import ExpertDomain
-
-    service.register_expert_class(
-        domain=ExpertDomain.MATH,
-        expert_class=MathExpert,
-        config={
-            "name": "Math Expert",
-            "description": "ReAct over sympy tools, with a deterministic fast-path for trivial expressions.",
-            "domain": ExpertDomain.MATH,
-        },
-    )
-    service.register_expert_class(
-        domain=ExpertDomain.CODE,
-        expert_class=CodeExpert,
-        config={
-            "name": "Code Expert",
-            "description": "ChainOfThought for code generation, debugging, refactoring, and review.",
-            "domain": ExpertDomain.CODE,
-        },
-    )
-    service.register_expert_class(
-        domain=ExpertDomain.GENERAL,
-        expert_class=GeneralExpert,
-        config={
-            "name": "General Expert",
-            "description": "ChainOfThought for open-ended general knowledge questions.",
-            "domain": ExpertDomain.GENERAL,
-        },
-    )
-
-    # Materialize one instance per domain so the API can resolve experts by domain.
-    for domain in (ExpertDomain.MATH, ExpertDomain.CODE, ExpertDomain.GENERAL):
-        await service.create_expert(domain)
-
-    logger.info("experts.registered", extra={"count": len(service._experts)})
 
 
 # ---------------------------------------------------------------------------
@@ -126,13 +88,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-limiter = Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIMIT])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 setup_cors(app)
 setup_error_handling(app)
-app.add_middleware(AuthzMiddleware)
+# Authorization is enforced per-route via Depends(require_role(...)), not here —
+# see app/auth.py. (No AuthzMiddleware: path-prefix matching is bypass-prone.)
 app.middleware("http")(LoggingMiddleware())
 
 app.include_router(api_router, prefix=settings.API_PREFIX)
@@ -218,7 +180,11 @@ async def metrics() -> PlainTextResponse:
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-@app.post("/cache/clear", response_model=CacheClearResponse)
+@app.post(
+    "/cache/clear",
+    response_model=CacheClearResponse,
+    dependencies=[Depends(require_role("admin"))],
+)
 @limiter.limit("5/minute")
 async def cache_clear(request: Request) -> CacheClearResponse:
     from app.utils.cache import cache

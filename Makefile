@@ -1,5 +1,5 @@
 # dspy-sme-expert — Makefile (uv-based)
-.PHONY: help install dev test test-eval lint format check build run optimize-math optimize-code optimize-general bitnet-setup bitnet-serve rag-install rag-index rag-up rag-clean modal-deploy modal-serve modal-finetune clean
+.PHONY: help install dev test test-eval lint format check build run optimize-math optimize-code optimize-general optimize-math-gepa bitnet-setup bitnet-serve bitnet-demo modal-deploy modal-serve modal-finetune rag-install rag-index rag-up rag-clean clean
 
 help: ## Show this help message
 	@echo "dspy-sme-expert — Development Commands"
@@ -55,6 +55,9 @@ bitnet-setup: ## Build bitnet.cpp + download the b1.58 2B 4T model (~3GB)
 
 bitnet-serve: ## Run the local bitnet.cpp llama-server on :8080
 	./scripts/bitnet_serve.sh
+
+bitnet-demo: ## Measure tok/s through the DSPy path against a running server + write a receipt
+	./scripts/bitnet_demo.sh
 
 # Agentic Hybrid RAG -------------------------------------------------------
 rag-install: ## Install the [rag] extra (lancedb + BGE-M3 + reranker)

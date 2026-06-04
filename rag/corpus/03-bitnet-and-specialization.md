@@ -16,9 +16,10 @@ standard LiteLLM OpenAI provider — no custom adapter. Bring it up with
 Point an expert at it via env:
 
 ```bash
-export DSPY_LM_MATH=openai/bitnet-b1.58-2B-4T
+export DSPY_LM_MATH=openai/bitnet
 export DSPY_LM_MATH_API_BASE=http://localhost:8080/v1
-export DSPY_LM_MATH_API_KEY=local
+export DSPY_LM_MATH_API_KEY_ENV=BITNET_DUMMY_KEY
+export BITNET_DUMMY_KEY=local
 ```
 
 Per-role config means MathExpert can run on BitNet while RouterAgent stays

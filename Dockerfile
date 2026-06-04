@@ -20,6 +20,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --no-install-project
 
 COPY app ./app
+# hatchling reads `readme = "README.md"` when building the project itself, so it
+# must be present for the (non --no-install-project) sync below.
+COPY README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev || uv sync --no-dev
 

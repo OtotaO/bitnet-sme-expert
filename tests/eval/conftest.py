@@ -1,37 +1,48 @@
-"""Eval-specific fixtures: gold dataset loaders and shared metrics."""
+"""Eval-specific fixtures: gold dataset loaders and shared metrics.
+
+The baseline ``*_examples`` fixtures resolve to the **holdout** split — the
+honest measure of generalization, since the optimizer only ever sees ``train``.
+``*_trainset`` fixtures are provided for tests that need the compile set.
+"""
 
 from __future__ import annotations
 
-import json
 import os
-from pathlib import Path
 
 import dspy
 import pytest
 
-DATA_DIR = Path(__file__).parent / "datasets"
-
-
-def _load_jsonl(name: str) -> list[dict]:
-    path = DATA_DIR / name
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+from tests.eval.loader import load_split
 
 
 @pytest.fixture(scope="session")
 def math_examples() -> list[dspy.Example]:
-    return [dspy.Example(**row).with_inputs("question") for row in _load_jsonl("math.jsonl")]
+    return load_split("math", "holdout")
 
 
 @pytest.fixture(scope="session")
 def code_examples() -> list[dspy.Example]:
-    return [
-        dspy.Example(**row).with_inputs("request", "language") for row in _load_jsonl("code.jsonl")
-    ]
+    return load_split("code", "holdout")
 
 
 @pytest.fixture(scope="session")
 def general_examples() -> list[dspy.Example]:
-    return [dspy.Example(**row).with_inputs("question") for row in _load_jsonl("general.jsonl")]
+    return load_split("general", "holdout")
+
+
+@pytest.fixture(scope="session")
+def math_trainset() -> list[dspy.Example]:
+    return load_split("math", "train")
+
+
+@pytest.fixture(scope="session")
+def code_trainset() -> list[dspy.Example]:
+    return load_split("code", "train")
+
+
+@pytest.fixture(scope="session")
+def general_trainset() -> list[dspy.Example]:
+    return load_split("general", "train")
 
 
 def pytest_collection_modifyitems(config, items) -> None:

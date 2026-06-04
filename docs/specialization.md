@@ -58,9 +58,12 @@ OpenAI provider — no custom adapter needed.
 Point DSPy at it via env vars (see `app/llm.py`):
 
 ```bash
-export DSPY_LM_MATH="openai/bitnet-b1.58-2B-4T"
+# The model string must match the server's --alias (bitnet_serve.sh uses `bitnet`).
+export DSPY_LM_MATH="openai/bitnet"
 export DSPY_LM_MATH_API_BASE="http://localhost:8080/v1"
-export DSPY_LM_MATH_API_KEY="local"   # bitnet.cpp ignores the value
+# API_KEY_ENV names the env var that holds the key (the value is read indirectly).
+export DSPY_LM_MATH_API_KEY_ENV="BITNET_DUMMY_KEY"
+export BITNET_DUMMY_KEY="local"   # bitnet.cpp ignores the value
 ```
 
 You don't have to use BitNet for every role. The `DSPY_LM_<ROLE>` pattern lets
@@ -85,7 +88,7 @@ big model absorbs in vague wording is exactly what a small model loses.
 
 ```bash
 make optimize-math              # dspy.MIPROv2 baseline
-DSPY_OPTIMIZER=gepa make optimize-math   # GEPA reflection loop
+make optimize-math-gepa         # GEPA reflection loop
 ```
 
 Compiled programs land in `compiled/<domain>.json` and are auto-loaded at
@@ -161,9 +164,12 @@ giving up the quality where it matters.
 
 A worked example for the `MathExpert` lane:
 
-1. **Curate a gold dataset.** Start with `tests/eval/datasets/math.jsonl`. Add
-   100-500 examples that reflect the domain you care about (calculus,
-   probability, finance math, etc.). Keep questions short, answers checkable.
+1. **Curate a gold dataset.** Start with the committed split
+   `tests/eval/datasets/math.train.jsonl` (compile set) and
+   `tests/eval/datasets/math.holdout.jsonl` (the never-trained-on set scores are
+   reported against). Add examples that reflect the domain you care about
+   (calculus, probability, finance math, etc.), keeping the holdout
+   representative. Keep questions short, answers checkable.
 
 2. **Establish a baseline.** Trigger the eval workflow against `main` with
    whatever LM you plan to ship:
@@ -176,9 +182,9 @@ A worked example for the `MathExpert` lane:
    the score from the JSON artifact (`eval-results.json`) the workflow uploads.
 
 3. **Bring up the BitNet server.** `./scripts/bitnet_setup.sh && ./scripts/bitnet_serve.sh`.
-   Re-run the workflow with `--field lm=openai/bitnet-b1.58-2B-4T` — expect a drop.
+   Re-run the workflow with `--field lm=openai/bitnet` — expect a drop.
 
-4. **Compile with GEPA.** `DSPY_OPTIMIZER=gepa make optimize-math`. The
+4. **Compile with GEPA.** `make optimize-math-gepa`. The
    resulting `compiled/math.json` is auto-loaded next start. Open a PR with
    the compiled artifact and re-run eval with `--field pr_number=<n>` so the
    score lands as a comment on the PR. This is usually where you recover

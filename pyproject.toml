@@ -34,7 +34,7 @@ dependencies = [
   "python-multipart>=0.0.12",
 
   # DSPy core stack
-  "dspy>=3.2.0",
+  "dspy>=3.2.1",
   "litellm>=1.55",
   "mlflow>=3.0",
 
@@ -59,10 +59,20 @@ dependencies = [
   # Caching + rate limit
   "redis>=5.2",
   "slowapi>=0.1.9",
+
+  # Security floor for a transitive dep (pulled via dspy -> inscriptis/ir-datasets).
+  # Pins past PYSEC-2026-87 (fixed in 6.1.0); not imported directly.
+  "lxml>=6.1.0",
 ]
 
 [project.optional-dependencies]
 postgres = ["asyncpg>=0.30", "psycopg[binary]>=3.2"]
+# MIPROv2 (the default optimizer in `make optimize-*`) searches the
+# instruction/demo space with Optuna; dspy keeps it as an optional dependency.
+optimize = ["optuna>=3.6"]
+# Optional MCP server (Model Context Protocol) exposing the experts as tools.
+# The official SDK is `mcp` (not the third-party `fastmcp`).
+mcp = ["mcp>=1.27.0"]
 finetune = [
   "transformers>=4.46",
   "datasets>=3.0",
@@ -99,6 +109,7 @@ changelog = "https://github.com/OtotaO/bitnet-sme-expert/blob/main/CHANGELOG.md"
 
 [project.scripts]
 dspy-sme = "app.cli:main"
+dspy-sme-mcp = "app.mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

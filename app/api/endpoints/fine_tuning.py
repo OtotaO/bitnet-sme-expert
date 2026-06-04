@@ -12,9 +12,10 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.auth import require_role
 from app.models.training import TrainingJob, TrainingStatus
 
 router = APIRouter()
@@ -92,7 +93,11 @@ def _run_training_job(job_id: str, request: FineTuningRequest) -> None:
         job.end_time = _now()
 
 
-@router.post("/fine-tune", response_model=FineTuningResponse)
+@router.post(
+    "/fine-tune",
+    response_model=FineTuningResponse,
+    dependencies=[Depends(require_role("admin"))],
+)
 async def start_fine_tuning(
     request: FineTuningRequest,
     background_tasks: BackgroundTasks,
@@ -113,7 +118,11 @@ async def start_fine_tuning(
     )
 
 
-@router.get("/training/status/{job_id}", response_model=TrainingJobStatusResponse)
+@router.get(
+    "/training/status/{job_id}",
+    response_model=TrainingJobStatusResponse,
+    dependencies=[Depends(require_role("admin", "operator"))],
+)
 async def get_training_status(job_id: str) -> TrainingJobStatusResponse:
     job = _active_jobs.get(job_id)
     if not job:
@@ -131,6 +140,10 @@ async def get_training_status(job_id: str) -> TrainingJobStatusResponse:
     )
 
 
-@router.get("/training/jobs", response_model=dict[str, str])
+@router.get(
+    "/training/jobs",
+    response_model=dict[str, str],
+    dependencies=[Depends(require_role("admin", "operator"))],
+)
 async def list_training_jobs() -> dict[str, str]:
     return {job_id: str(job.status) for job_id, job in _active_jobs.items()}

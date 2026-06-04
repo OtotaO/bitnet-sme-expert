@@ -1,4 +1,4 @@
-"""DSPy LM configuration with LiteLLM routing, fallback chains, and optional MLflow tracing.
+"""DSPy LM configuration with per-role LiteLLM routing and optional MLflow tracing.
 
 Single source of truth for which model serves which task. Providers are addressed by
 LiteLLM strings (``"openai/gpt-5"``, ``"anthropic/claude-4.5-sonnet"``,
@@ -25,14 +25,18 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class LMSpec:
-    """A single LM specification with optional fallbacks."""
+    """A single per-role LM specification.
+
+    ``fallbacks`` is reserved for a future litellm fallback-chain wiring; it is
+    not consumed by :meth:`build` today.
+    """
 
     model: str
     api_base: str | None = None
     api_key_env: str | None = None
     max_tokens: int = 1024
     temperature: float = 0.7
-    fallbacks: tuple[str, ...] = ()
+    fallbacks: tuple[str, ...] = ()  # reserved; not yet wired into build()
 
     def build(self) -> dspy.LM:
         kwargs: dict[str, object] = {
@@ -61,17 +65,20 @@ def _resolve_spec(role: str) -> LMSpec:
 
     Env overrides allow swapping a per-role model without touching code:
     ``DSPY_LM_MATH=openai/bitnet`` plus ``DSPY_LM_MATH_API_BASE=http://localhost:8080/v1``.
+
+    The ``_TEMPERATURE`` / ``_MAX_TOKENS`` / ``_API_*`` overrides apply on their
+    own too (against the default model), so e.g. eval/optimize can pin
+    ``DSPY_LM_<ROLE>_TEMPERATURE=0`` for reproducible runs without restating the
+    model.
     """
-    override = os.environ.get(f"DSPY_LM_{role.upper()}")
+    key = role.upper()
     base = _DEFAULT_SPECS[role]
-    if not override:
-        return base
     return LMSpec(
-        model=override,
-        api_base=os.environ.get(f"DSPY_LM_{role.upper()}_API_BASE"),
-        api_key_env=os.environ.get(f"DSPY_LM_{role.upper()}_API_KEY_ENV"),
-        max_tokens=int(os.environ.get(f"DSPY_LM_{role.upper()}_MAX_TOKENS", base.max_tokens)),
-        temperature=float(os.environ.get(f"DSPY_LM_{role.upper()}_TEMPERATURE", base.temperature)),
+        model=os.environ.get(f"DSPY_LM_{key}", base.model),
+        api_base=os.environ.get(f"DSPY_LM_{key}_API_BASE", base.api_base),
+        api_key_env=os.environ.get(f"DSPY_LM_{key}_API_KEY_ENV", base.api_key_env),
+        max_tokens=int(os.environ.get(f"DSPY_LM_{key}_MAX_TOKENS", base.max_tokens)),
+        temperature=float(os.environ.get(f"DSPY_LM_{key}_TEMPERATURE", base.temperature)),
     )
 
 
@@ -95,8 +102,11 @@ def configure_dspy(enable_mlflow: bool | None = None) -> None:
     """Configure global DSPy defaults and optional MLflow autolog.
 
     Called once at app startup. MLflow autolog gives free OpenTelemetry-based
-    tracing of every module call, plus optimizer-run tracking when GEPA / MIPROv2
-    are used. Toggled by ``MLFLOW_TRACKING_URI`` being set, or the explicit arg.
+    tracing of every module call. Toggled by ``MLFLOW_TRACKING_URI`` being set,
+    or the explicit arg. (``scripts/optimize.py`` configures its own MLflow run
+    to log baseline/optimized/delta metrics + the receipt when
+    ``MLFLOW_TRACKING_URI`` is set; the committed receipts under ``eval/receipts/``
+    are the source of truth either way.)
     """
     dspy.configure(lm=get_lm("general"), async_max_workers=settings.MAX_CONCURRENT_REQUESTS)
 

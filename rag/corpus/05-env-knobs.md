@@ -27,9 +27,10 @@ DSPY_LM_GENERAL=openai/gpt-4o-mini
 For local BitNet via bitnet.cpp on :8080:
 
 ```bash
-DSPY_LM_MATH=openai/bitnet-b1.58-2B-4T
+DSPY_LM_MATH=openai/bitnet
 DSPY_LM_MATH_API_BASE=http://localhost:8080/v1
-DSPY_LM_MATH_API_KEY=local      # bitnet.cpp ignores the value
+DSPY_LM_MATH_API_KEY_ENV=BITNET_DUMMY_KEY
+BITNET_DUMMY_KEY=local          # bitnet.cpp ignores the value
 ```
 
 ## CodeExpert sandbox
