@@ -1,0 +1,15 @@
+{"question": "What is the capital of Canada?", "must_contain": ["Ottawa"]}
+{"question": "What is the chemical symbol for silver?", "must_contain": ["Ag"]}
+{"question": "Who wrote the novel War and Peace?", "must_contain": ["Tolstoy"]}
+{"question": "What is the largest desert in the world by area (including polar deserts)?", "must_contain": ["Antarctic"]}
+{"question": "How many sides does a hexagon have?", "must_contain": ["6", "six"]}
+{"question": "What chemical element has atomic number 1?", "must_contain": ["hydrogen"]}
+{"question": "Who is credited with inventing the printing press in Europe in the 15th century?", "must_contain": ["Gutenberg"]}
+{"question": "What is the capital of Egypt?", "must_contain": ["Cairo"]}
+{"question": "What planet has the most prominent ring system?", "must_contain": ["Saturn"]}
+{"question": "Who painted The Starry Night?", "must_contain": ["van Gogh", "Gogh"]}
+{"question": "What element, essential for human respiration, has the chemical symbol O?", "must_contain": ["oxygen"]}
+{"question": "In what year did the Berlin Wall fall?", "must_contain": ["1989"]}
+{"question": "What is the longest mountain range on land in the world?", "must_contain": ["Andes"]}
+{"question": "Who wrote the theory of gravitation described in Principia Mathematica?", "must_contain": ["Newton"]}
+{"question": "What is the largest mammal on Earth?", "must_contain": ["blue whale"]}

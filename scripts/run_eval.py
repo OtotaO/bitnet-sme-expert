@@ -35,35 +35,31 @@ if str(REPO_ROOT) not in sys.path:
 
 from app.dspy_modules import CodeProgram, GeneralProgram, MathProgram
 from app.llm import configure_dspy
-from tests.eval.test_eval import code_metric, general_metric, math_metric
+from tests.eval.loader import load_split
+from tests.eval.test_eval import code_metric, general_metric, math_metric, to_fraction
 
 logger = logging.getLogger("eval_runner")
-DATA_DIR = REPO_ROOT / "tests" / "eval" / "datasets"
 DEFAULT_THRESHOLDS = {"math": 0.6, "code": 0.6, "general": 0.7}
 
-
-def _load_jsonl(name: str) -> list[dict]:
-    return [json.loads(line) for line in (DATA_DIR / name).read_text().splitlines() if line.strip()]
+# Programs and metrics per domain. The gold examples come from the *holdout*
+# split (see tests/eval/loader.py) — the optimizer only ever trains on `train`,
+# so scoring on `holdout` is the honest, un-overfit number we gate on.
+_PROGRAMS: dict[str, type[dspy.Module]] = {
+    "math": MathProgram,
+    "code": CodeProgram,
+    "general": GeneralProgram,
+}
+_METRICS: dict[str, Callable[..., float]] = {
+    "math": math_metric,
+    "code": code_metric,
+    "general": general_metric,
+}
 
 
 def _build(domain: str) -> tuple[dspy.Module, list[dspy.Example], Callable[..., float]]:
-    if domain == "math":
-        examples = [
-            dspy.Example(**row).with_inputs("question") for row in _load_jsonl("math.jsonl")
-        ]
-        return MathProgram(), examples, math_metric
-    if domain == "code":
-        examples = [
-            dspy.Example(**row).with_inputs("request", "language")
-            for row in _load_jsonl("code.jsonl")
-        ]
-        return CodeProgram(), examples, code_metric
-    if domain == "general":
-        examples = [
-            dspy.Example(**row).with_inputs("question") for row in _load_jsonl("general.jsonl")
-        ]
-        return GeneralProgram(), examples, general_metric
-    raise ValueError(f"unknown domain: {domain}")
+    if domain not in _PROGRAMS:
+        raise ValueError(f"unknown domain: {domain}")
+    return _PROGRAMS[domain](), load_split(domain, "holdout"), _METRICS[domain]
 
 
 def _set_per_role_lm(domain: str, lm: str | None) -> None:
@@ -78,9 +74,10 @@ def _set_per_role_lm(domain: str, lm: str | None) -> None:
 def run_domain(domain: str, threshold: float, num_threads: int) -> dict[str, object]:
     program, examples, metric = _build(domain)
     evaluator = dspy.Evaluate(devset=examples, num_threads=num_threads, display_progress=False)
-    score = float(evaluator(program, metric=metric))
+    score = to_fraction(evaluator(program, metric=metric))
     return {
         "domain": domain,
+        "split": "holdout",
         "n": len(examples),
         "score": round(score, 4),
         "threshold": threshold,

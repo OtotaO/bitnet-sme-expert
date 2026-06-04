@@ -135,9 +135,12 @@ giving up the quality where it matters.
 
 A worked example for the `MathExpert` lane:
 
-1. **Curate a gold dataset.** Start with `tests/eval/datasets/math.jsonl`. Add
-   100-500 examples that reflect the domain you care about (calculus,
-   probability, finance math, etc.). Keep questions short, answers checkable.
+1. **Curate a gold dataset.** Start with the committed split
+   `tests/eval/datasets/math.train.jsonl` (compile set) and
+   `tests/eval/datasets/math.holdout.jsonl` (the never-trained-on set scores are
+   reported against). Add examples that reflect the domain you care about
+   (calculus, probability, finance math, etc.), keeping the holdout
+   representative. Keep questions short, answers checkable.
 
 2. **Establish a baseline.** Trigger the eval workflow against `main` with
    whatever LM you plan to ship:

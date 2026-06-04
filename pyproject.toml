@@ -63,6 +63,9 @@ dependencies = [
 
 [project.optional-dependencies]
 postgres = ["asyncpg>=0.30", "psycopg[binary]>=3.2"]
+# MIPROv2 (the default optimizer in `make optimize-*`) searches the
+# instruction/demo space with Optuna; dspy keeps it as an optional dependency.
+optimize = ["optuna>=3.6"]
 finetune = [
   "transformers>=4.46",
   "datasets>=3.0",

@@ -1,0 +1,15 @@
+{"request": "Write a Python function that computes the nth Fibonacci number iteratively", "language": "python", "must_contain": ["def", "return"]}
+{"request": "Write a Python decorator that logs the arguments a function is called with", "language": "python", "must_contain": ["def", "wrapper", "@"]}
+{"request": "Write a Python generator that yields lines from a file lazily using with open", "language": "python", "must_contain": ["def", "yield", "with", "open"]}
+{"request": "Write a Python context manager class that opens and closes a database connection via __enter__ and __exit__", "language": "python", "must_contain": ["class", "def __enter__", "def __exit__"]}
+{"request": "Define a Python class Money with __init__, __eq__, and __repr__ dunder methods", "language": "python", "must_contain": ["class", "def __init__", "def __eq__"]}
+{"request": "Write a frozen Python dataclass named Config with a name field and a port int field", "language": "python", "must_contain": ["import", "@dataclass", "class"]}
+{"request": "Write a Python function that divides two numbers and handles division by zero by raising a custom error", "language": "python", "must_contain": ["def", "try", "except", "raise"]}
+{"request": "Write a Python function that returns the unique values of a list preserving order using a comprehension", "language": "python", "must_contain": ["def", "for", "return"]}
+{"request": "Write a Python function that sorts a list of dicts by their 'age' key using sorted", "language": "python", "must_contain": ["def", "sorted", "key", "return"]}
+{"request": "Write a Python function using the re module to replace all whitespace runs with a single space", "language": "python", "must_contain": ["import", "re", "def", "return"]}
+{"request": "Write an async Python function that gathers results from several coroutines using asyncio.gather", "language": "python", "must_contain": ["async", "await", "gather"]}
+{"request": "Write a Python function with type hints that takes a list of int and returns their average as a float", "language": "python", "must_contain": ["def", "->", "float", "return"]}
+{"request": "Write a Python function that appends a line to a log file using a with open in append mode", "language": "python", "must_contain": ["def", "open", "with", "write"]}
+{"request": "Write a Python function that finds the most common element in a list using collections.Counter", "language": "python", "must_contain": ["import", "Counter", "def", "return"]}
+{"request": "Write a Python function that implements quicksort recursively and returns a new sorted list", "language": "python", "must_contain": ["def", "quicksort", "return"]}

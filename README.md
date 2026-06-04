@@ -98,6 +98,48 @@ harness against the compiled programs:
 RUN_EVAL=1 uv run pytest tests/eval -v -s
 ```
 
+## Eval gate & receipts
+
+The gold sets ship as a committed **train/holdout split** so a reported score
+can't be an overfit-to-the-eval-set artifact (`tests/eval/loader.py`):
+
+| Domain | Train | Holdout | Pass threshold (holdout) |
+| --- | ---: | ---: | ---: |
+| math | 45 | 15 | 0.60 |
+| code | 40 | 15 | 0.60 |
+| general | 40 | 15 | 0.70 |
+
+`scripts/optimize.py` compiles on `train` and scores on `holdout`, writing a
+dated receipt to `eval/receipts/<domain>-<optimizer>.json` (baseline, compiled,
+delta, LM, split sizes). The `Eval` workflow runs `scripts/run_eval.py` against
+the holdout set on every PR to `main` as a required check (see
+`.github/workflows/eval.yml`).
+
+### Committed receipts (`openai/gpt-4o-mini`, 2026-06-04)
+
+Baseline holdout scores (no compiled program loaded):
+
+| Domain | N (holdout) | Score | Threshold | Pass |
+| --- | ---: | ---: | ---: | :---: |
+| math | 15 | 0.73 | 0.60 | ✅ |
+| code | 15 | 1.00 | 0.60 | ✅ |
+| general | 15 | 1.00 | 0.70 | ✅ |
+
+MIPROv2 (`auto=light`) compile — math (`eval/receipts/math-miprov2.json`):
+
+| Domain | Baseline | Compiled | Delta |
+| --- | ---: | ---: | ---: |
+| math | 0.73 | 0.60 | **−0.13** |
+
+**Honest result: this compile did not beat the baseline.** MIPROv2 light on a
+45-example train set with `gpt-4o-mini` regressed the held-out math score — the
+deterministic arithmetic fast-path in `MathProgram` is already a strong
+baseline, and the chosen instructions/demos hurt more than they helped on the
+small holdout. The receipt is committed as-is (project policy: never massage a
+non-positive delta). A win likely needs a larger gold set, `auto=medium`/GEPA,
+or a stronger reflection LM. `code` and `general` were not compiled: their
+baselines already saturate the holdout at 1.00, leaving no measurable headroom.
+
 ## Optional: local inference with `bitnet.cpp`
 
 `bitnet.cpp` ships an OpenAI-compatible `llama-server` (built during its
@@ -117,8 +159,18 @@ export DSPY_LM_MATH_API_KEY_ENV="BITNET_DUMMY_KEY"
 export BITNET_DUMMY_KEY="local"
 ```
 
-The 2B-4T BitNet model runs comfortably on CPU at 5-7 tok/s and is useful as
-a cheap fallback for PII-sensitive or offline workloads.
+The 2B-4T BitNet model is a useful cheap fallback for PII-sensitive or offline
+workloads. Throughput is hardware-dependent — measure it on your own box rather
+than trusting a headline number:
+
+```bash
+make bitnet-demo   # sends a fixed prompt through the DSPy path, prints
+                   # measured tok/s, writes eval/receipts/bitnet-<date>.txt
+```
+
+(Microsoft's published bitnet.cpp benchmarks put the b1.58-2B-4T model in the
+~5-7 tok/s range on a typical x86 CPU core; this repo ships no measured figure
+of its own until `make bitnet-demo` produces one.)
 
 ## Observability
 

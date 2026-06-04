@@ -21,6 +21,23 @@ def _dspy_configured() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Score scaling
+# ---------------------------------------------------------------------------
+
+
+def to_fraction(raw_score: float) -> float:
+    """Normalize a ``dspy.Evaluate`` result to a 0-1 fraction.
+
+    ``dspy.Evaluate`` reports the average metric as a 0-100 *percentage* (e.g.
+    ``73.33`` for 11/15). Thresholds in this repo are expressed as fractions
+    (math/code = 0.6, general = 0.7), so the raw score must be divided by 100
+    before any ``score >= threshold`` comparison — otherwise the gate compares
+    a percentage against a fraction and passes for essentially any score.
+    """
+    return float(raw_score) / 100.0
+
+
+# ---------------------------------------------------------------------------
 # Metrics
 # ---------------------------------------------------------------------------
 
@@ -59,22 +76,22 @@ def general_metric(example: dspy.Example, prediction: dspy.Prediction, *_, **__)
 def test_math_baseline(math_examples) -> None:
     program = MathProgram()
     evaluator = dspy.Evaluate(devset=math_examples, num_threads=4, display_progress=True)
-    score = evaluator(program, metric=math_metric)
-    print(f"\nMathProgram baseline: {score:.2f}")
+    score = to_fraction(evaluator(program, metric=math_metric))
+    print(f"\nMathProgram baseline (holdout): {score:.2f}")
     assert score >= 0.6, f"baseline math score too low: {score}"
 
 
 def test_code_baseline(code_examples) -> None:
     program = CodeProgram()
     evaluator = dspy.Evaluate(devset=code_examples, num_threads=4, display_progress=True)
-    score = evaluator(program, metric=code_metric)
-    print(f"\nCodeProgram baseline: {score:.2f}")
+    score = to_fraction(evaluator(program, metric=code_metric))
+    print(f"\nCodeProgram baseline (holdout): {score:.2f}")
     assert score >= 0.6, f"baseline code score too low: {score}"
 
 
 def test_general_baseline(general_examples) -> None:
     program = GeneralProgram()
     evaluator = dspy.Evaluate(devset=general_examples, num_threads=4, display_progress=True)
-    score = evaluator(program, metric=general_metric)
-    print(f"\nGeneralProgram baseline: {score:.2f}")
+    score = to_fraction(evaluator(program, metric=general_metric))
+    print(f"\nGeneralProgram baseline (holdout): {score:.2f}")
     assert score >= 0.7, f"baseline general score too low: {score}"

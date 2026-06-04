@@ -1,0 +1,12 @@
+{
+  "domain": "math",
+  "optimizer": "miprov2",
+  "auto": "light",
+  "lm": "openai/gpt-4o-mini",
+  "split": "train->holdout",
+  "baseline": 0.7333,
+  "optimized": 0.6,
+  "delta": -0.13329999999999997,
+  "n_train": 45,
+  "n_holdout": 15
+}
