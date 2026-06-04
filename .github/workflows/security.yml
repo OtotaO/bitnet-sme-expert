@@ -32,4 +32,9 @@ jobs:
         run: bandit -r app/ -lll -iii
 
       - name: Run dependency audit
-        run: pip-audit
+        # diskcache CVE-2025-69872 has no fixed release yet; it is a transitive
+        # dep of dspy used only for local LM-response caching, not exposed to
+        # untrusted input here. Suppressed with a dated note; drop the ignore
+        # once a fixed diskcache ships. (lxml PYSEC-2026-87 is pinned out in
+        # pyproject, so it is not ignored here.)
+        run: pip-audit --ignore-vuln CVE-2025-69872

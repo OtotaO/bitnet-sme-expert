@@ -59,6 +59,10 @@ dependencies = [
   # Caching + rate limit
   "redis>=5.2",
   "slowapi>=0.1.9",
+
+  # Security floor for a transitive dep (pulled via dspy -> inscriptis/ir-datasets).
+  # Pins past PYSEC-2026-87 (fixed in 6.1.0); not imported directly.
+  "lxml>=6.1.0",
 ]
 
 [project.optional-dependencies]
