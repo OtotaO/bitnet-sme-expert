@@ -65,17 +65,20 @@ def _resolve_spec(role: str) -> LMSpec:
 
     Env overrides allow swapping a per-role model without touching code:
     ``DSPY_LM_MATH=openai/bitnet`` plus ``DSPY_LM_MATH_API_BASE=http://localhost:8080/v1``.
+
+    The ``_TEMPERATURE`` / ``_MAX_TOKENS`` / ``_API_*`` overrides apply on their
+    own too (against the default model), so e.g. eval/optimize can pin
+    ``DSPY_LM_<ROLE>_TEMPERATURE=0`` for reproducible runs without restating the
+    model.
     """
-    override = os.environ.get(f"DSPY_LM_{role.upper()}")
+    key = role.upper()
     base = _DEFAULT_SPECS[role]
-    if not override:
-        return base
     return LMSpec(
-        model=override,
-        api_base=os.environ.get(f"DSPY_LM_{role.upper()}_API_BASE"),
-        api_key_env=os.environ.get(f"DSPY_LM_{role.upper()}_API_KEY_ENV"),
-        max_tokens=int(os.environ.get(f"DSPY_LM_{role.upper()}_MAX_TOKENS", base.max_tokens)),
-        temperature=float(os.environ.get(f"DSPY_LM_{role.upper()}_TEMPERATURE", base.temperature)),
+        model=os.environ.get(f"DSPY_LM_{key}", base.model),
+        api_base=os.environ.get(f"DSPY_LM_{key}_API_BASE", base.api_base),
+        api_key_env=os.environ.get(f"DSPY_LM_{key}_API_KEY_ENV", base.api_key_env),
+        max_tokens=int(os.environ.get(f"DSPY_LM_{key}_MAX_TOKENS", base.max_tokens)),
+        temperature=float(os.environ.get(f"DSPY_LM_{key}_TEMPERATURE", base.temperature)),
     )
 
 

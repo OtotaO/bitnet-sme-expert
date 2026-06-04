@@ -16,13 +16,13 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from app.api.endpoints import api_router
 from app.config import settings
 from app.database import Base, engine, init_db
+from app.limiter import limiter
 from app.llm import configure_dspy
 from app.middleware import AuthzMiddleware, LoggingMiddleware, setup_cors, setup_error_handling
 from app.observability import configure_logging
@@ -126,7 +126,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-limiter = Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIMIT])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

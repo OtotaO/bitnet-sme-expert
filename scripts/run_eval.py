@@ -62,6 +62,9 @@ def _build(domain: str) -> tuple[dspy.Module, list[dspy.Example], Callable[..., 
     return _PROGRAMS[domain](), load_split(domain, "holdout"), _METRICS[domain]
 
 
+_ALL_ROLES = ("router", "math", "code", "general")
+
+
 def _set_per_role_lm(domain: str, lm: str | None) -> None:
     """Override the role-specific LM via the same env vars ``app/llm.py`` reads."""
     if not lm:
@@ -69,6 +72,16 @@ def _set_per_role_lm(domain: str, lm: str | None) -> None:
     role = domain.upper()
     os.environ[f"DSPY_LM_{role}"] = lm
     # Inherit base_url / api_key envs from the caller if set.
+
+
+def _pin_temperature(temperature: float) -> None:
+    """Pin every role's sampling temperature for a reproducible eval.
+
+    The programs evaluate under the ambient (general-role) LM, but we set every
+    role so the result is deterministic regardless of which LM ends up serving.
+    """
+    for role in _ALL_ROLES:
+        os.environ[f"DSPY_LM_{role.upper()}_TEMPERATURE"] = str(temperature)
 
 
 def run_domain(domain: str, threshold: float, num_threads: int) -> dict[str, object]:
@@ -111,12 +124,19 @@ def main(argv: Iterable[str] | None = None) -> int:
         default=None,
         help="Optional path to also write the full results array as JSON.",
     )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.0,
+        help="Sampling temperature pinned for a reproducible eval (default 0.0).",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     domains = ["math", "code", "general"] if args.domain == "all" else [args.domain]
     for d in domains:
         _set_per_role_lm(d, args.lm)
+    _pin_temperature(args.temperature)
     configure_dspy(enable_mlflow=bool(os.environ.get("MLFLOW_TRACKING_URI")))
 
     results: list[dict[str, object]] = []

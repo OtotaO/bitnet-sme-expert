@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -78,6 +79,11 @@ def main() -> int:
         help="Stronger model used by GEPA for reflection",
     )
     args = parser.parse_args()
+
+    # Pin temperature=0 so the baseline-vs-compiled delta is reproducible and a
+    # win/loss isn't sampling noise. Honored by app/llm.py:_resolve_spec.
+    for role in ("router", "math", "code", "general"):
+        os.environ.setdefault(f"DSPY_LM_{role.upper()}_TEMPERATURE", "0.0")
 
     configure_dspy(enable_mlflow=False)
     spec = DOMAINS[args.domain]

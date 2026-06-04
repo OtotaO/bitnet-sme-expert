@@ -6,8 +6,10 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.config import settings
+from app.limiter import limiter
 from app.schemas.base import BaseResponse, ExpertDomain
 from app.schemas.request import CollaborateRequest, FeedbackRequest, QueryRequest
 from app.schemas.response import (
@@ -73,7 +75,9 @@ async def list_experts(
     summary="Query an expert",
     tags=["Query"],
 )
+@limiter.limit(settings.RATE_LIMIT)
 async def query_expert(
+    http_request: Request,
     request: QueryRequest,
     expert_service: ExpertService = Depends(get_expert_service),
 ) -> QueryResponse:
@@ -138,7 +142,9 @@ async def query_expert(
     summary="Collaborate with multiple experts",
     tags=["Collaboration"],
 )
+@limiter.limit(settings.RATE_LIMIT)
 async def collaborate(
+    http_request: Request,
     request: CollaborateRequest,
     expert_service: ExpertService = Depends(get_expert_service),
 ) -> CollaborateResponse:
