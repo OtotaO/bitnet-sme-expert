@@ -25,6 +25,21 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=2000]
 
+  # Billing-immune local CI: GitHub Actions billing-blocks at the account level,
+  # silently killing CI. The hooks above are the lint/format/typecheck half of
+  # ci.yml but run only at commit time. This pre-push stage mirrors ci.yml's TEST
+  # job so the full suite runs locally before any push (zero Actions minutes).
+  # Register it once with: pre-commit install --hook-type pre-push
+  - repo: local
+    hooks:
+      - id: pytest-ci-mirror
+        name: pytest (CI mirror, pre-push)
+        entry: uv run pytest tests --ignore=tests/eval
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
 ci:
   autofix_commit_msg: '[pre-commit.ci] auto fixes'
   autofix_prs: true
