@@ -19,11 +19,16 @@ MODEL="${BITNET_ALIAS:-bitnet}"          # matches --alias in bitnet_serve.sh
 PROMPT="${BITNET_PROMPT:-Explain in one paragraph why 1-bit weight quantization reduces memory bandwidth.}"
 MAX_TOKENS="${BITNET_MAX_TOKENS:-256}"
 
-# Fail fast with a clear message if the server isn't up.
+# Skip gracefully (exit 0) when no server is reachable, so this script is safe
+# to run in CI / on a clean checkout with no model present. The measured-tok/s
+# path only runs on real hardware with a live server.
 if ! curl -sf "http://${HOST}:${PORT}/health" >/dev/null 2>&1 \
    && ! curl -sf "${API_BASE}/models" >/dev/null 2>&1; then
-  echo "No llama-server reachable at http://${HOST}:${PORT}. Run 'make bitnet-serve' first." >&2
-  exit 1
+  echo "SKIP: no bitnet.cpp llama-server reachable at http://${HOST}:${PORT}." >&2
+  echo "      This demo measures real tok/s and needs a live server + model." >&2
+  echo "      Build and start one first: 'make bitnet-setup && make bitnet-serve'." >&2
+  echo "      Skipping (no measurement produced); this is expected with no model." >&2
+  exit 0
 fi
 
 STAMP="$(date +%Y-%m-%d)"

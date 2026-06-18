@@ -1,5 +1,5 @@
 # dspy-sme-expert — Makefile (uv-based)
-.PHONY: help install dev test test-eval lint format check build run optimize-math optimize-code optimize-general optimize-math-gepa bitnet-setup bitnet-serve bitnet-demo modal-deploy modal-serve modal-finetune rag-install rag-index rag-up rag-clean clean
+.PHONY: help install dev test test-eval lint format check build run optimize-math optimize-code optimize-general optimize-math-gepa eval-receipt bitnet-setup bitnet-serve bitnet-demo modal-deploy modal-serve modal-finetune rag-install rag-index rag-up rag-clean clean
 
 help: ## Show this help message
 	@echo "dspy-sme-expert — Development Commands"
@@ -48,6 +48,9 @@ optimize-general: ## Compile the general program
 
 optimize-math-gepa: ## Compile math with GEPA (slower, often better)
 	uv run python scripts/optimize.py --domain math --optimizer gepa
+
+eval-receipt: ## Render the README eval-receipt table from eval/receipts/*.json
+	uv run python scripts/write_eval_receipt.py
 
 # bitnet.cpp ---------------------------------------------------------------
 bitnet-setup: ## Build bitnet.cpp + download the b1.58 2B 4T model (~3GB)
