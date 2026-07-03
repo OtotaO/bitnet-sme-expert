@@ -1,0 +1,14 @@
+# BILLING-IMMUNE LOCAL CI GATE — mirrors Makefile (lint + test).
+# GitHub Actions is billing-blocked account-wide; these hooks run the same gate
+# locally at git time (zero CI minutes). Activate once: `lefthook install`.
+# Bypass: --no-verify (sparingly).
+pre-commit:
+  parallel: false
+  commands:
+    lint:
+      run: make lint
+pre-push:
+  parallel: false
+  commands:
+    full-gate:
+      run: make lint && make test
