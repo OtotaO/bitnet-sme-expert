@@ -13,9 +13,12 @@ one-shot exact evaluation. This keeps simple queries cheap and exact.
 
 from __future__ import annotations
 
+import ast
 import concurrent.futures
 import functools
+import math
 import re
+import threading
 from collections.abc import Callable
 from typing import Any
 
@@ -26,27 +29,137 @@ from .signatures import SolveMathProblem
 
 # ---------------------------------------------------------------------------
 # Guard: sympy.sympify on untrusted (LLM-relayed user) input can hang or blow up
-# memory on adversarial expressions — e.g. a nested power tower like 9**9**9.
-# We cap input length and bound wall-clock time. NB: CPython can't kill a running
-# thread, so a timed-out evaluation keeps burning a background CPU until it
-# finishes on its own; this bounds *latency*, not total work. The length cap is
-# the cheaper first line of defense.
+# memory on adversarial expressions.
+#
+# The length + timeout caps below bound *latency* only. They do not bound
+# *work*: CPython cannot kill a running thread, so a timed-out evaluation keeps
+# burning a CPU and allocating until it finishes on its own. `9^9^9^9` is seven
+# characters — it sails past the length cap, is rewritten to `9**9**9**9`, and
+# then allocates until the process dies. Verified locally against sympy 1.14.0:
+# still running and growing after two minutes.
+#
+# So the real defense has to refuse the expression *before* any evaluation
+# starts. `_reject_reason` parses the expression with `ast` and rejects
+# unbounded exponentiation; `_bounded` then applies the length cap, a
+# concurrency circuit-breaker, and the timeout as backstops.
+#
+# Every guard here only ever *refuses*. None of them makes the evaluator
+# attempt more work than before.
 # ---------------------------------------------------------------------------
 
 _MAX_EXPR_LEN = 256
 _EVAL_TIMEOUT_S = 5.0
-_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="sympy")
+_EXECUTOR_WORKERS = 4
+_executor = concurrent.futures.ThreadPoolExecutor(
+    max_workers=_EXECUTOR_WORKERS, thread_name_prefix="sympy"
+)
+
+# A literal exponent above this is refused outright. 9**5000 is ~4,800 digits —
+# computed instantly, harmless — so this is far above any legitimate query.
+_MAX_LITERAL_EXPONENT = 5_000
+# ...and, when both operands are literals, the result must fit in this many
+# bits (~64 KiB of integer). Catches 2**500000 as well as 999999**99999.
+_MAX_POW_RESULT_BITS = 1 << 19
+
+
+class _StuckCounter:
+    """Circuit breaker for evaluations that timed out but cannot be killed.
+
+    A thread wedged inside sympy can never be reclaimed, so once every worker is
+    stuck we stop submitting instead of letting stuck threads (and their
+    allocations) pile up without limit. Bounds the leak at ``_EXECUTOR_WORKERS``.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.count = 0
+
+    def saturated(self, limit: int) -> bool:
+        with self._lock:
+            return self.count >= limit
+
+    def acquire(self) -> None:
+        with self._lock:
+            self.count += 1
+
+    def release(self) -> None:
+        with self._lock:
+            self.count -= 1
+
+
+_stuck = _StuckCounter()
+
+
+def _pow_is_unbounded(node: ast.AST) -> str | None:
+    """Return a refusal reason if ``node`` contains unbounded exponentiation."""
+    for sub in ast.walk(node):
+        if not (isinstance(sub, ast.BinOp) and isinstance(sub.op, ast.Pow)):
+            continue
+
+        exponent = sub.right
+        while isinstance(exponent, ast.UnaryOp) and isinstance(exponent.op, (ast.UAdd, ast.USub)):
+            exponent = exponent.operand
+
+        # A power tower (a**b**c). Evaluating the exponent is itself the attack,
+        # so we refuse rather than try to measure it. Symbolic towers are
+        # legitimate maths but vanishingly rare in queries; refusing is safe.
+        if isinstance(exponent, ast.BinOp) and isinstance(exponent.op, ast.Pow):
+            return "chained exponentiation"
+
+        if not isinstance(exponent, ast.Constant) or not isinstance(exponent.value, (int, float)):
+            continue  # symbolic exponent (x**n) — sympy keeps it symbolic, no blow-up
+
+        if abs(exponent.value) > _MAX_LITERAL_EXPONENT:
+            return f"exponent exceeds {_MAX_LITERAL_EXPONENT}"
+
+        base = sub.left
+        while isinstance(base, ast.UnaryOp) and isinstance(base.op, (ast.UAdd, ast.USub)):
+            base = base.operand
+        if isinstance(base, ast.Constant) and isinstance(base.value, (int, float)):
+            magnitude = abs(base.value)
+            if magnitude > 1:
+                bits = abs(exponent.value) * math.log2(magnitude)
+                if bits > _MAX_POW_RESULT_BITS:
+                    return "result too large to compute"
+    return None
+
+
+def _reject_reason(expression: str) -> str | None:
+    """Return a refusal reason for an expression we must not hand to sympy.
+
+    Returns ``None`` when the expression is safe to evaluate *or* when it cannot
+    be parsed as Python — in the latter case sympy's own parser raises a normal
+    error, which is already handled.
+    """
+    if len(expression) > _MAX_EXPR_LEN:
+        return f"expression exceeds {_MAX_EXPR_LEN} characters"
+    try:
+        tree = ast.parse(expression.replace("^", "**"), mode="eval")
+    except (SyntaxError, ValueError, MemoryError, RecursionError):
+        return None
+    return _pow_is_unbounded(tree)
 
 
 def _bounded(fn: Callable[..., str], *args: Any, **kwargs: Any) -> str:
-    """Run a sympy tool with an input-length cap and a wall-clock timeout."""
+    """Run a sympy tool behind the refusal guards described above."""
     for a in args:
-        if isinstance(a, str) and len(a) > _MAX_EXPR_LEN:
-            return f"[refused: expression exceeds {_MAX_EXPR_LEN} characters]"
+        if isinstance(a, str):
+            if len(a) > _MAX_EXPR_LEN:
+                return f"[refused: expression exceeds {_MAX_EXPR_LEN} characters]"
+            reason = _reject_reason(a)
+            if reason is not None:
+                return f"[refused: {reason}]"
+
+    if _stuck.saturated(_EXECUTOR_WORKERS):
+        return "[refused: evaluator saturated by a previous runaway expression]"
+
     future = _executor.submit(fn, *args, **kwargs)
     try:
         return future.result(timeout=_EVAL_TIMEOUT_S)
     except concurrent.futures.TimeoutError:
+        # The thread keeps running; we can only count it and stop feeding more.
+        _stuck.acquire()
+        future.add_done_callback(lambda _f: _stuck.release())
         return f"[refused: evaluation exceeded {_EVAL_TIMEOUT_S:.0f}s]"
     except Exception as exc:  # surface sympy errors as a string, don't raise into ReAct
         return f"[error: {type(exc).__name__}: {exc}]"
