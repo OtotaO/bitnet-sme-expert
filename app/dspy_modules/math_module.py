@@ -17,6 +17,7 @@ import ast
 import concurrent.futures
 import functools
 import math
+import operator
 import re
 import threading
 from collections.abc import Callable
@@ -90,37 +91,167 @@ class _StuckCounter:
 _stuck = _StuckCounter()
 
 
+# An exponent has to be evaluated in order to bound the power, so the exponent
+# itself must be cheap. Anything whose own magnitude needs more bits than this
+# is refused without being evaluated. 64 bits is far above any real query and
+# keeps the evaluation of ordinary big literals (e.g. `2^999999999`) instant, so
+# they still get the precise "exponent exceeds ..." message.
+_MAX_EXPONENT_BITS = 64
+
+
+class _Refused(Exception):
+    """Raised by the magnitude analysis when an expression must not be evaluated."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+_UNARY_OPS: dict[type[ast.AST], Callable[[Any], Any]] = {
+    ast.UAdd: operator.pos,
+    ast.USub: operator.neg,
+}
+_BINARY_OPS: dict[type[ast.AST], Callable[[Any, Any], Any]] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+# Operators whose result size is bounded by the sum of the operand sizes.
+_SUM_SIZED_OPS = (ast.Mult, ast.Div, ast.FloorDiv, ast.Mod)
+
+
+def _const_value(node: ast.AST) -> int | float | None:
+    """Exactly evaluate a constant-only arithmetic subtree, or return ``None``.
+
+    Only ever called on subtrees whose magnitude has already been bounded by
+    :func:`_magnitude_bits`, so the arithmetic here is cheap by construction.
+    """
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+            return None
+        return node.value
+
+    if isinstance(node, ast.UnaryOp):
+        unary = _UNARY_OPS.get(type(node.op))
+        operand = _const_value(node.operand)
+        return None if unary is None or operand is None else unary(operand)
+
+    if isinstance(node, ast.BinOp):
+        binary = _BINARY_OPS.get(type(node.op))
+        left = _const_value(node.left)
+        right = _const_value(node.right)
+        if binary is None or left is None or right is None:
+            return None
+        # Refuse rather than materialise an exponent we have not sized.
+        if isinstance(node.op, ast.Pow) and abs(right) > _MAX_LITERAL_EXPONENT:
+            return None
+        try:
+            return binary(left, right)
+        except (ZeroDivisionError, OverflowError, ValueError, TypeError):
+            return None
+
+    return None
+
+
+def _magnitude_bits(node: ast.AST) -> float | None:
+    """Upper bound on ``log2(|value|)`` for a constant-only subtree.
+
+    Returns ``None`` when the subtree contains a free symbol — sympy keeps those
+    symbolic, so they cannot produce an integer blow-up. Raises :class:`_Refused`
+    when the subtree provably yields a value too large to compute.
+
+    This has to be recursive: bounding only a literal ``base ** literal``
+    lets `(10^5000)^5000` and `2^(99999*99999)` through, and both of those burn
+    GBs of RSS inside a thread that CPython cannot kill.
+    """
+
+    if isinstance(node, ast.Expression):
+        return _magnitude_bits(node.body)
+
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+            return None
+        magnitude = abs(node.value)
+        return 0.0 if magnitude <= 1 else math.log2(magnitude)
+
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPS:
+        return _magnitude_bits(node.operand)
+
+    if isinstance(node, ast.BinOp):
+        return _binop_magnitude_bits(node)
+
+    # Anything else (names, calls, comparisons) is symbolic as far as we know,
+    # but still has to be walked so a refusal nested inside it fires.
+    for child in ast.iter_child_nodes(node):
+        _magnitude_bits(child)
+    return None
+
+
+def _cap(bits: float) -> float:
+    if bits > _MAX_POW_RESULT_BITS:
+        raise _Refused("result too large to compute")
+    return bits
+
+
+def _pow_magnitude_bits(node: ast.BinOp) -> float | None:
+    """Bound ``base ** exponent``, refusing anything unbounded."""
+    # Recurse into both sides first: a refusal deeper in the tree (e.g. the
+    # inner (10^5000)^5000 of a three-level nest) still fires.
+    base_bits = _magnitude_bits(node.left)
+    exponent_bits = _magnitude_bits(node.right)
+
+    # A power tower (a**b**c). Kept as an explicit case so the refusal reason
+    # stays specific; the size bound below would also catch it.
+    stripped = node.right
+    while isinstance(stripped, ast.UnaryOp) and type(stripped.op) in _UNARY_OPS:
+        stripped = stripped.operand
+    if isinstance(stripped, ast.BinOp) and isinstance(stripped.op, ast.Pow):
+        raise _Refused("chained exponentiation")
+
+    if exponent_bits is None:
+        return None  # symbolic exponent (x**n) — sympy keeps it symbolic
+    if exponent_bits > _MAX_EXPONENT_BITS:
+        raise _Refused(f"exponent exceeds {_MAX_LITERAL_EXPONENT}")
+
+    exponent = _const_value(node.right)
+    if exponent is None:
+        return None
+    if abs(exponent) > _MAX_LITERAL_EXPONENT:
+        raise _Refused(f"exponent exceeds {_MAX_LITERAL_EXPONENT}")
+    if base_bits is None:
+        return None  # symbolic base with a small literal exponent
+    return _cap(base_bits * abs(exponent))
+
+
+def _binop_magnitude_bits(node: ast.BinOp) -> float | None:
+    if isinstance(node.op, ast.Pow):
+        return _pow_magnitude_bits(node)
+
+    left = _magnitude_bits(node.left)
+    right = _magnitude_bits(node.right)
+    if left is None or right is None:
+        return None
+    if isinstance(node.op, (ast.Add, ast.Sub)):
+        return _cap(max(left, right) + 1.0)
+    if isinstance(node.op, _SUM_SIZED_OPS):
+        # |a*b|, and the numerator+denominator of a/b, are both bounded by the
+        # sum of the operand sizes.
+        return _cap(left + right)
+    return None
+
+
 def _pow_is_unbounded(node: ast.AST) -> str | None:
     """Return a refusal reason if ``node`` contains unbounded exponentiation."""
-    for sub in ast.walk(node):
-        if not (isinstance(sub, ast.BinOp) and isinstance(sub.op, ast.Pow)):
-            continue
-
-        exponent = sub.right
-        while isinstance(exponent, ast.UnaryOp) and isinstance(exponent.op, (ast.UAdd, ast.USub)):
-            exponent = exponent.operand
-
-        # A power tower (a**b**c). Evaluating the exponent is itself the attack,
-        # so we refuse rather than try to measure it. Symbolic towers are
-        # legitimate maths but vanishingly rare in queries; refusing is safe.
-        if isinstance(exponent, ast.BinOp) and isinstance(exponent.op, ast.Pow):
-            return "chained exponentiation"
-
-        if not isinstance(exponent, ast.Constant) or not isinstance(exponent.value, (int, float)):
-            continue  # symbolic exponent (x**n) — sympy keeps it symbolic, no blow-up
-
-        if abs(exponent.value) > _MAX_LITERAL_EXPONENT:
-            return f"exponent exceeds {_MAX_LITERAL_EXPONENT}"
-
-        base = sub.left
-        while isinstance(base, ast.UnaryOp) and isinstance(base.op, (ast.UAdd, ast.USub)):
-            base = base.operand
-        if isinstance(base, ast.Constant) and isinstance(base.value, (int, float)):
-            magnitude = abs(base.value)
-            if magnitude > 1:
-                bits = abs(exponent.value) * math.log2(magnitude)
-                if bits > _MAX_POW_RESULT_BITS:
-                    return "result too large to compute"
+    try:
+        _magnitude_bits(node)
+    except _Refused as refused:
+        return refused.reason
+    except RecursionError:
+        return "expression nested too deeply"
     return None
 
 

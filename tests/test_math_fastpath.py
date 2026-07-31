@@ -7,6 +7,8 @@ hanging.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 from pydantic import ValidationError
 
@@ -108,6 +110,81 @@ def test_rejection_is_immediate(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_guard_does_not_refuse_legitimate_powers(question: str, expected: str) -> None:
     assert _reject_reason(question) is None
     assert _try_fast_path(question) == expected
+
+
+# ---------------------------------------------------------------------------
+# Regression: the first version of the guard only bounded a *literal* base
+# raised to a *literal* exponent, so two adjacent classes walked straight past
+# it and reproduced the original DoS in full:
+#
+#   ((10^5000)^5000)^5000  — nested powers; the outer base is a BinOp, not a
+#                            literal, so no size bound was ever computed.
+#   2^(99999*99999)        — the exponent is a BinOp, not a literal, so it was
+#                            misread as "symbolic" and allowed.
+#
+# Measured against sympy 1.14.0 under the repo venv: `2^(99999*99999)` reached
+# 3.2 GB RSS at 25 s and was still climbing, inside a thread CPython cannot
+# kill. These must be refused before anything is submitted to the executor.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "(10^5000)^5000",  # nested power, both levels individually "small"
+        "((10^5000)^5000)^5000",
+        "(((10^5000)^5000)^5000)^5000",
+        "(2^4999)^4999",
+        "2^(99999*99999)",  # computed exponent — 3.2 GB RSS before this guard
+        "2^(3*100000)",
+        "2^(5000+5000)",
+        "(2*2)^100000",
+        "10^(2^20)",
+    ],
+)
+def test_rejects_nested_and_computed_exponents(expression: str) -> None:
+    assert _reject_reason(expression) is not None
+    assert _bounded(_eval_exact, expression).startswith("[refused")
+
+
+def test_nested_power_refusal_never_reaches_the_executor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The nested/computed forms must refuse statically, like the tower does."""
+
+    def _explode(*args: object, **kwargs: object) -> None:
+        raise AssertionError("executor must not be reached for a refused expression")
+
+    monkeypatch.setattr(math_module._executor, "submit", _explode)
+    assert _bounded(_eval_exact, "((10^5000)^5000)^5000").startswith("[refused")
+    assert _bounded(_eval_exact, "2^(99999*99999)").startswith("[refused")
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "9^5000",  # ~4,800 digits — instant, must stay allowed
+        "(9^9)^9",  # nested but tiny
+        "2^(2+4998)",  # computed exponent, within the literal bound
+        "10^4999*10^4999",  # product stays under the result-size cap
+    ],
+)
+def test_bound_does_not_over_refuse_large_but_cheap_expressions(expression: str) -> None:
+    assert _reject_reason(expression) is None
+
+
+def test_worst_case_allowed_expression_is_cheap() -> None:
+    """Whatever the bound still admits must evaluate fast, not just eventually.
+
+    The largest thing the size cap permits inside the length cap is a chain of
+    products; if this ever becomes slow the cap is wrong.
+    """
+    expression = "*".join(["(10^5000)"] * 24)
+    assert len(expression) <= math_module._MAX_EXPR_LEN
+    assert _reject_reason(expression) is None
+    started = time.monotonic()
+    assert not _bounded(_eval_exact, expression).startswith("[refused")
+    assert time.monotonic() - started < 2.0
 
 
 def test_symbolic_exponent_is_not_refused() -> None:
