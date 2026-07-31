@@ -131,7 +131,7 @@ def _const_value(node: ast.AST) -> int | float | None:
     :func:`_magnitude_bits`, so the arithmetic here is cheap by construction.
     """
     if isinstance(node, ast.Constant):
-        if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+        if isinstance(node.value, bool) or not isinstance(node.value, int | float):
             return None
         return node.value
 
@@ -173,7 +173,7 @@ def _magnitude_bits(node: ast.AST) -> float | None:
         return _magnitude_bits(node.body)
 
     if isinstance(node, ast.Constant):
-        if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+        if isinstance(node.value, bool) or not isinstance(node.value, int | float):
             return None
         magnitude = abs(node.value)
         return 0.0 if magnitude <= 1 else math.log2(magnitude)
