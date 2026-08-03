@@ -4,11 +4,18 @@ from pydantic import BaseModel, Field
 
 from .base import ExpertDomain
 
+# /query and /collaborate are unauthenticated (rate-limited only), so an
+# unbounded `question` is free memory amplification for any caller. 4 000
+# characters is well past any real question and keeps the body small.
+MAX_QUESTION_LEN = 4_000
+
 
 class QueryRequest(BaseModel):
     """Request model for querying an expert."""
 
-    question: str = Field(..., description="The question to ask the expert")
+    question: str = Field(
+        ..., max_length=MAX_QUESTION_LEN, description="The question to ask the expert"
+    )
     domain: ExpertDomain | None = Field(
         None, description="Specific expert domain to query (auto-detected if not provided)"
     )
@@ -25,7 +32,9 @@ class QueryRequest(BaseModel):
 class CollaborateRequest(BaseModel):
     """Request model for collaborating with multiple experts."""
 
-    question: str = Field(..., description="The question to ask the experts")
+    question: str = Field(
+        ..., max_length=MAX_QUESTION_LEN, description="The question to ask the experts"
+    )
     domains: list[ExpertDomain] = Field(
         default_factory=list,
         description="List of expert domains to consult (all available experts if empty)",
