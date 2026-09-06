@@ -63,6 +63,11 @@ dependencies = [
   # Security floor for a transitive dep (pulled via dspy -> inscriptis/ir-datasets).
   # Pins past PYSEC-2026-87 (fixed in 6.1.0); not imported directly.
   "lxml>=6.1.0",
+
+  # Security floor for a transitive dep (pulled via pyjwt[crypto]).
+  # Pins past PYSEC-2026-3552 (fixed in 50.0.0); not imported directly.
+  # This is what has failed the weekly Security Scans run since 2026-08-10.
+  "cryptography>=50.0.0",
 ]
 
 [project.optional-dependencies]
